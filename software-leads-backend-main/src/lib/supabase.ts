@@ -3,11 +3,14 @@ import dotenv from 'dotenv'
 
 dotenv.config()
 
+const SUPABASE_URL = process.env.SUPABASE_URL || 'https://placeholder-project.supabase.co'
+const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY || 'placeholder-service-key'
+
 const supabase = createClient(
-    process.env.SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_KEY!
+    SUPABASE_URL,
+    SUPABASE_SERVICE_KEY
 )
 
 export default supabase
 
-export const BUCKET = process.env.SUPABASE_BUCKET as string
+export const BUCKET = (process.env.SUPABASE_BUCKET as string) || 'software-leads'
