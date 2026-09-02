@@ -33,6 +33,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   async function checkAuth() {
+    const isPublic = pathname === "/login" || pathname === "/employee/login" || pathname?.startsWith("/employee/") || pathname?.startsWith("/developer/");
+    const token = typeof window !== "undefined" ? localStorage.getItem("access_token") : null;
+
+    if (!token && isPublic) {
+      setLoading(false);
+      return;
+    }
+
     try {
       const { user } = await authApi.me();
       setUser(user);
@@ -40,7 +48,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         localStorage.setItem("user", JSON.stringify(user));
       }
     } catch (error) {
-      // Access token may have expired — try rotating it via refresh, then retry.
+      if (!token && isPublic) {
+        setUser(null);
+        setLoading(false);
+        return;
+      }
       try {
         await authApi.refresh();
         const { user } = await authApi.me();
