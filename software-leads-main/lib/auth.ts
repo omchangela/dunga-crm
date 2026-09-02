@@ -14,6 +14,12 @@ export interface LoginData {
   password: string;
 }
 
+export const getToken = () => typeof window !== "undefined" ? localStorage.getItem("access_token") : null;
+export const getAuthHeaders = (): Record<string, string> => {
+  const t = getToken();
+  return t ? { Authorization: `Bearer ${t}` } : {};
+};
+
 export const authApi = {
   // Login
   login: async (data: LoginData): Promise<{ user: User }> => {
@@ -28,6 +34,10 @@ export const authApi = {
     if (!res.ok) {
       throw new Error(body?.message ?? "Invalid email or password");
     }
+    const token = body.token ?? body.data?.token;
+    if (token && typeof window !== "undefined") {
+      localStorage.setItem("access_token", token);
+    }
     return { user: body.user ?? body.data?.user ?? body.data };
   },
 
@@ -35,6 +45,7 @@ export const authApi = {
   me: async (): Promise<{ user: User }> => {
     const res = await fetch(`${BASE}/api/auth/me`, {
       method: "GET",
+      headers: { ...getAuthHeaders() },
       credentials: "include", // Important for cookies
     });
 
@@ -49,7 +60,7 @@ export const authApi = {
   changePassword: async (data: { currentPassword: string; newPassword: string }) => {
     const res = await fetch(`${BASE}/api/auth/change-password`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", ...getAuthHeaders() },
       credentials: "include",
       body: JSON.stringify(data),
     });
@@ -62,6 +73,7 @@ export const authApi = {
   refresh: async () => {
     const res = await fetch(`${BASE}/api/auth/refresh`, {
       method: "POST",
+      headers: { ...getAuthHeaders() },
       credentials: "include", // Important for cookies
     });
     
@@ -69,13 +81,22 @@ export const authApi = {
       throw new Error("Token refresh failed");
     }
     
-    return res.json();
+    const body = await res.json().catch(() => ({}));
+    const token = body.token ?? body.data?.token;
+    if (token && typeof window !== "undefined") {
+      localStorage.setItem("access_token", token);
+    }
+    return body;
   },
 
   // Logout current device
   logout: async () => {
+    if (typeof window !== "undefined") {
+      localStorage.removeItem("access_token");
+    }
     const res = await fetch(`${BASE}/api/auth/logout`, {
       method: "POST",
+      headers: { ...getAuthHeaders() },
       credentials: "include", // Important for cookies
     });
     
@@ -88,8 +109,12 @@ export const authApi = {
 
   // Logout all devices
   logoutAll: async () => {
+    if (typeof window !== "undefined") {
+      localStorage.removeItem("access_token");
+    }
     const res = await fetch(`${BASE}/api/auth/logout-all`, {
       method: "POST",
+      headers: { ...getAuthHeaders() },
       credentials: "include", // Important for cookies
     });
 
@@ -105,7 +130,7 @@ export const authApi = {
 
 async function authRequest(path: string, init: RequestInit = {}) {
   const res = await fetch(`${BASE}${path}`, {
-    headers: { "Content-Type": "application/json", ...init.headers },
+    headers: { "Content-Type": "application/json", ...getAuthHeaders(), ...init.headers },
     credentials: "include",
     ...init,
   });

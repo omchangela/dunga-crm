@@ -37,8 +37,12 @@ async function request<T = any>(
   const url = new URL(`${BASE}${path}`);
   if (params) Object.entries(params).forEach(([k, v]) => url.searchParams.set(k, v));
 
+  const authHeader = typeof window !== "undefined" && localStorage.getItem("access_token")
+    ? { Authorization: `Bearer ${localStorage.getItem("access_token")}` }
+    : {};
+
   const res = await fetch(url.toString(), {
-    headers: { "Content-Type": "application/json", ...rest.headers },
+    headers: { "Content-Type": "application/json", ...authHeader, ...rest.headers },
     credentials: "include", // Include HTTP-only cookies
     ...rest,
   });

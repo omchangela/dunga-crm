@@ -70,6 +70,8 @@ const issueTokens = async (
 
     setAccessCookie(res, accessToken)
     setRefreshCookie(res, refreshToken)
+
+    return accessToken
 }
 
 // ─── CONTROLLERS ──────────────────────────────────
@@ -103,7 +105,7 @@ export const login = async (req: Request, res: Response) => {
         return
     }
 
-    await issueTokens(req, res, user.id, user.role)
+    const accessToken = await issueTokens(req, res, user.id, user.role)
 
     res.status(200).json({
         success: true,
@@ -112,7 +114,8 @@ export const login = async (req: Request, res: Response) => {
             id:    user.id,
             name:  user.name,
             email: user.email,
-            role:  user.role
+            role:  user.role,
+            token: accessToken
         }
     })
 }

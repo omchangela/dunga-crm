@@ -38,6 +38,9 @@ if (!cluster.isWorker || cluster.worker?.id === 1) {
 
 const app = express()
 
+// Trust Render / Vercel reverse proxy for HTTPS cookies
+app.set('trust proxy', 1)
+
 app.use(helmet())
 
 
