@@ -41,27 +41,21 @@ const app = express()
 // Trust Render / Vercel reverse proxy for HTTPS cookies
 app.set('trust proxy', 1)
 
-app.use(helmet())
-
-
-
-const allowedOrigins = [
-    'http://localhost:3000',
-    'http://localhost:5173',
-    process.env.CLIENT_URL
-].filter(Boolean) as string[]
-
+// CORS must be before Helmet
 app.use(cors({
     origin: (origin, callback) => {
-        if (!origin) return callback(null, true)
-
-        if (allowedOrigins.includes(origin)) {
-            callback(null, true)
-        } else {
-            callback(null, true)
-        }
+        // Reflect origin so credentials work from any Vercel domain or localhost
+        callback(null, true)
     },
-    credentials: true
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'Cookie', 'X-Requested-With'],
+    exposedHeaders: ['Set-Cookie']
+}))
+
+app.use(helmet({
+    crossOriginResourcePolicy: false,
+    crossOriginEmbedderPolicy: false
 }))
 
 app.use(express.json())

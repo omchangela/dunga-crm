@@ -14,8 +14,9 @@ export const requireAuth = (
     next: NextFunction
 ) => {
     let token = req.cookies?.access_token
-    if (!token && req.headers.authorization?.startsWith('Bearer ')) {
-        token = req.headers.authorization.split(' ')[1]
+    const authHeader = req.headers.authorization || (req.headers as any)['Authorization']
+    if (!token && typeof authHeader === 'string' && authHeader.toLowerCase().startsWith('bearer ')) {
+        token = authHeader.slice(7).trim()
     }
 
     if (!token) {
