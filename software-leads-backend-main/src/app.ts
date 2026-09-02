@@ -65,6 +65,16 @@ app.use(express.json())
 app.use(express.urlencoded({ extended: true }))
 app.use(cookieParser())
 
+// Log all incoming HTTP requests to Render console
+app.use((req, res, next) => {
+    const start = Date.now()
+    res.on('finish', () => {
+        const duration = Date.now() - start
+        console.log(`[${req.method}] ${req.originalUrl} -> ${res.statusCode} (${duration}ms)`)
+    })
+    next()
+})
+
 // health check (public)
 app.get('/health', (req, res) => {
     res.json({
