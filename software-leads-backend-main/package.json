@@ -1,0 +1,61 @@
+{
+  "name": "software-leads",
+  "version": "1.0.0",
+  "type": "commonjs",
+  "scripts": {
+    "dev": "ts-node-dev --respawn --transpile-only src/cluster.ts",
+    "worker:pdf": "ts-node-dev --respawn --transpile-only src/workers/pdf.worker.ts",
+    "worker:import": "ts-node-dev --respawn --transpile-only src/workers/import.worker.ts",
+    "worker:all": "concurrently \"npm run worker:pdf\" \"npm run worker:import\"",
+    "start": "node dist/cluster.js",
+    "start:worker:pdf": "node dist/workers/pdf.worker.js",
+    "start:worker:import": "node dist/workers/import.worker.js",
+    "postinstall": "prisma generate",
+    "build": "tsc && npm run copy:assets",
+    "copy:assets": "node -e \"const fs=require('fs');const path=require('path');const src='src/lib/pdf/styles/estimation.css';const dest='dist/lib/pdf/styles/estimation.css';fs.mkdirSync(path.dirname(dest),{recursive:true});fs.copyFileSync(src,dest);console.log('CSS copied');\""
+  },
+  "dependencies": {
+    "@prisma/client": "^5.22.0",
+    "@sparticuz/chromium": "^138.0.2",
+    "@supabase/supabase-js": "^2.108.2",
+    "@types/bcryptjs": "^2.4.6",
+    "@types/cookie-parser": "^1.4.10",
+    "@types/cors": "^2.8.19",
+    "@types/express": "^5.0.6",
+    "@types/jsonwebtoken": "^9.0.10",
+    "@types/multer": "^2.1.0",
+    "@types/node": "^25.9.2",
+    "@types/nodemailer": "^8.0.1",
+    "@types/pdfkit": "^0.17.6",
+    "@types/uuid": "^10.0.0",
+    "bcryptjs": "^3.0.3",
+    "bullmq": "^4.18.3",
+    "cookie-parser": "^1.4.7",
+    "cors": "^2.8.6",
+    "csv-parse": "^6.2.1",
+    "dotenv": "^17.4.2",
+    "express": "^4.22.2",
+    "express-async-errors": "^3.1.1",
+    "helmet": "^8.2.0",
+    "ioredis": "^5.11.1",
+    "iovalkey": "^0.3.3",
+    "jsonwebtoken": "^9.0.3",
+    "multer": "^2.1.1",
+    "nodemailer": "^9.0.1",
+    "pdfkit": "^0.19.1",
+    "prisma": "^5.22.0",
+    "puppeteer-core": "^24.10.2",
+    "ts-node": "^10.9.2",
+    "ts-node-dev": "^2.0.0",
+    "typescript": "^6.0.3",
+    "uuid": "^14.0.0",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@types/ioredis": "^4.28.10",
+    "concurrently": "^10.0.3"
+  },
+  "engines": {
+    "node": "22.x"
+  }
+}

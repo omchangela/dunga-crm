@@ -1,0 +1,74 @@
+@import "tailwindcss";
+
+@theme inline {
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-muted: var(--sidebar-muted);
+  --color-sidebar-active: var(--sidebar-active);
+  --color-sidebar-active-foreground: var(--sidebar-active-foreground);
+}
+
+/* ── SoftLeads design reference ─────────────────────────────────────────────
+   Primary   #0971fe  ·  Ink #1a2035  ·  Muted #8094ae
+   Border    #e5e9f2  ·  Page bg #f5f6fa  ·  Cards: white, rounded-xl, shadow-sm
+   Status    green=active · yellow=pending · purple=converted · red=rejected · blue=info
+─────────────────────────────────────────────────────────────────────────── */
+:root {
+  --radius: 0.625rem;
+  --background: #f5f6fa;
+  --foreground: #1a2035;
+  --card: #ffffff;
+  --card-foreground: #1a2035;
+  --popover: #ffffff;
+  --popover-foreground: #1a2035;
+  --primary: #0971fe;
+  --primary-foreground: #ffffff;
+  --secondary: #f5f6fa;
+  --secondary-foreground: #1a2035;
+  --muted: #f5f6fa;
+  --muted-foreground: #8094ae;
+  --accent: #f0f6ff;
+  --accent-foreground: #0971fe;
+  --destructive: #e85347;
+  --destructive-foreground: #ffffff;
+  --border: #e5e9f2;
+  --input: #e5e9f2;
+  --ring: #0971fe;
+  --sidebar: #1a2035;
+  --sidebar-foreground: #a8b4c8;
+  --sidebar-muted: #8094ae;
+  --sidebar-active: #0971fe;
+  --sidebar-active-foreground: #ffffff;
+}
+
+* {
+  border-color: var(--border);
+}
+
+body {
+  background-color: var(--background);
+  color: var(--foreground);
+}

@@ -1,0 +1,362 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+enum LeadStatus {
+  PENDING
+  CONVERTED
+  REJECTED
+}
+
+enum ServiceType {
+  WEB_DEVELOPMENT
+  APP_DEVELOPMENT
+  APP_WEB_DEVELOPMENT
+  DIGITAL_MARKETING
+  DESIGN_SERVICES
+  OTHERS
+}
+
+enum LeadSource {
+  ADVERTISEMENT
+  CLIENT_REFERENCE
+  SALES_EXECUTIVE
+  OTHER
+}
+
+enum ReminderStatus {
+  PENDING
+  DONE
+}
+
+enum CustomerStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum ProjectStatus {
+  PENDING
+  CONVERTED
+  REJECTED
+  ACTIVE
+  COMPLETED
+  ON_HOLD
+  CANCELLED
+}
+
+model Lead {
+  id          String      @id @default(uuid())
+  fullName    String
+  phone       String      @unique
+  email       String?
+  state       String?
+  city        String?
+  serviceType ServiceType
+  source      LeadSource
+  status      LeadStatus  @default(PENDING)
+  followUp    Boolean     @default(false)
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  reminders   Reminder[]
+  customer    Customer?
+
+  assignedTo   String?
+  employee     Employee? @relation(fields: [assignedTo], references: [id], onDelete: SetNull)
+  followUps    LeadFollowUp[]
+}
+
+model Reminder {
+  id         String         @id @default(uuid())
+  reminderAt DateTime
+  note       String?
+  status     ReminderStatus @default(PENDING)
+
+  createdAt  DateTime       @default(now())
+  updatedAt  DateTime       @updatedAt
+
+  leadId     String
+  lead       Lead           @relation(fields: [leadId], references: [id], onDelete: Cascade)
+
+  // Re-reminder tracking
+  parentReminderId String?
+  parentReminder   Reminder?  @relation("ReminderChain", fields: [parentReminderId], references: [id])
+
+  reReminders      Reminder[] @relation("ReminderChain")
+}
+
+model Customer {
+  id                String         @id @default(uuid())
+  fullName          String
+  phone             String         @unique
+  email             String?
+  state             String?
+  city              String?
+  serviceType       ServiceType
+  applicationNumber String         @unique
+  status            CustomerStatus @default(ACTIVE)
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
+
+  leadId            String         @unique
+  lead              Lead           @relation(fields: [leadId], references: [id])
+  projects          Project[]
+
+  assignedTo   String?
+  employee     Employee? @relation(fields: [assignedTo], references: [id], onDelete: SetNull)
+}
+
+model Project {
+  id             String        @id @default(uuid())
+  projectName    String
+  description    String?
+  serviceType    ServiceType
+  status         ProjectStatus @default(PENDING)
+  budget         Float         @default(0)
+  webOverview    String[]      @default([])
+  appOverview    String[]      @default([])
+  adminOverview  String[]      @default([])
+  payments       Json          @default("[]")
+  timelines      Json          @default("[]")
+  schedules      Json          @default("[]")
+
+  // delivery fields
+  contractNumber String?
+  deadline       DateTime?
+  developers     String[]      @default([])
+  featureItems   Json          @default("[]")
+  costHistory    Json          @default("[]")
+
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  customerId     String
+  customer       Customer      @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  transactions FinanceTransaction[]
+
+   tasks Task[]
+
+  estimationPdfUrl String?
+  estimationPdfAt  DateTime?
+
+  projectPdfUrl    String?
+  projectPdfAt     DateTime?
+
+  subscriptions Subscription[]
+}
+
+
+enum PaymentMethod {
+  UPI
+  BANK_TRANSFER
+  CASH
+  CHEQUE
+  OTHER
+}
+
+model FinanceTransaction {
+  id            String        @id @default(uuid())
+  amount        Float
+  paymentMethod PaymentMethod
+  paymentDate   DateTime
+  transactionId String?
+  note          String?
+  allocations   Json          @default("[]")
+  source        TransactionSource @default(PROJECT)
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  projectId      String
+  project        Project       @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  subscriptionId String?
+  subscription   Subscription? @relation(fields: [subscriptionId], references: [id], onDelete: SetNull)
+}
+
+model Developer {
+  id         String   @id @default(uuid())
+  name       String
+  phone      String   @unique
+  email      String   @unique
+  role       String
+  experience String
+  skills     String[] @default([])
+  status     String   @default("Active")
+  joinedAt   DateTime @default(now())
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  tasks Task[]
+
+  password      String?   // nullable for existing devs
+  lastLoginAt   DateTime?
+
+  refreshTokens DeveloperRefreshToken[]
+}
+
+
+model DeveloperRefreshToken {
+  id          String    @id @default(uuid())
+  developerId String
+  developer   Developer @relation(fields: [developerId], references: [id], onDelete: Cascade)
+  userAgent   String?
+  ipAddress   String?
+  issuedAt    DateTime  @default(now())
+  expiresAt   DateTime
+  revokedAt   DateTime?
+  replacedBy  String?
+
+  @@index([developerId])
+}
+
+model Task {
+  id          String   @id @default(uuid())
+  title       String
+  description String?
+  dueDate     DateTime?
+  priority    String   @default("Medium")
+  status      String   @default("Todo")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  projectId   String
+  project     Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  assignedTo  String
+  developer   Developer @relation(fields: [assignedTo], references: [id], onDelete: Cascade)
+}
+
+
+model Subscription {
+  id           String   @id @default(uuid())
+  name         String
+  description  String?
+  category     String
+  amount       Float    @default(0)
+  billingCycle String   @default("Monthly")
+  renewalDate  DateTime
+  status       String   @default("Active")
+  lastPaidAt   DateTime?
+  paidUntil    DateTime?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  projectId    String?
+  project      Project? @relation(fields: [projectId], references: [id], onDelete: SetNull)
+
+  transactions FinanceTransaction[]
+}
+
+enum TransactionSource {
+  PROJECT
+  SUBSCRIPTION
+}
+
+
+enum UserRole {
+  ADMIN
+  USER
+}
+
+model User {
+  id        String   @id @default(uuid())
+  name      String
+  email     String   @unique
+  password  String
+  role      UserRole @default(USER)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // refresh token tracking
+  refreshTokens RefreshToken[]
+}
+
+model RefreshToken {
+  id          String   @id @default(uuid())  // this is the JTI
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // device tracking
+  userAgent   String?
+  ipAddress   String?
+
+  // token lifecycle
+  issuedAt    DateTime @default(now())
+  expiresAt   DateTime
+  revokedAt   DateTime?
+
+  // rotation chain — detect reuse attacks
+  replacedBy  String?
+
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+
+
+model Employee {
+  id        String   @id @default(uuid())
+  name      String
+  email     String   @unique
+  password  String
+  phone     String?
+  role      String   @default("Sales Executive")
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  leads         Lead[]
+  customers     Customer[]
+  targets       EmployeeTarget[]
+  followUps     LeadFollowUp[]
+  refreshTokens EmployeeRefreshToken[]
+}
+
+model EmployeeTarget {
+  id         String   @id @default(uuid())
+  month      Int
+  year       Int
+  target     Float    @default(0)
+  achieved   Float    @default(0)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  employeeId String
+  employee   Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@unique([employeeId, month, year])
+}
+
+model LeadFollowUp {
+  id        String   @id @default(uuid())
+  note      String
+  followedAt DateTime @default(now())
+  createdAt DateTime @default(now())
+
+  leadId     String
+  lead       Lead     @relation(fields: [leadId], references: [id], onDelete: Cascade)
+
+  employeeId String
+  employee   Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+}
+
+model EmployeeRefreshToken {
+  id         String   @id @default(uuid())
+  employeeId String
+  employee   Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  userAgent  String?
+  ipAddress  String?
+  issuedAt   DateTime @default(now())
+  expiresAt  DateTime
+  revokedAt  DateTime?
+  replacedBy String?
+
+  @@index([employeeId])
+}
