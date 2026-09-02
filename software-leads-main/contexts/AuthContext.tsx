@@ -23,6 +23,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   // Check authentication on mount
   useEffect(() => {
+    try {
+      const cached = typeof window !== "undefined" ? localStorage.getItem("user") : null;
+      if (cached) {
+        setUser(JSON.parse(cached));
+      }
+    } catch {}
     checkAuth();
   }, []);
 
@@ -30,14 +36,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       const { user } = await authApi.me();
       setUser(user);
+      if (typeof window !== "undefined") {
+        localStorage.setItem("user", JSON.stringify(user));
+      }
     } catch (error) {
       // Access token may have expired — try rotating it via refresh, then retry.
       try {
         await authApi.refresh();
         const { user } = await authApi.me();
         setUser(user);
+        if (typeof window !== "undefined") {
+          localStorage.setItem("user", JSON.stringify(user));
+        }
       } catch {
         setUser(null);
+        if (typeof window !== "undefined") {
+          localStorage.removeItem("user");
+          localStorage.removeItem("access_token");
+        }
       }
     } finally {
       setLoading(false);
@@ -47,6 +63,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   async function login(email: string, password: string) {
     const { user } = await authApi.login({ email, password });
     setUser(user);
+    if (typeof window !== "undefined") {
+      localStorage.setItem("user", JSON.stringify(user));
+    }
     
     // Redirect to intended destination or dashboard
     const params = new URLSearchParams(window.location.search);
@@ -63,6 +82,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       console.error("Logout error:", error);
     } finally {
       setUser(null);
+      if (typeof window !== "undefined") {
+        localStorage.removeItem("user");
+        localStorage.removeItem("access_token");
+      }
       router.push("/login");
     }
   }
@@ -74,6 +97,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       console.error("Logout all error:", error);
     } finally {
       setUser(null);
+      if (typeof window !== "undefined") {
+        localStorage.removeItem("user");
+        localStorage.removeItem("access_token");
+      }
       router.push("/login");
     }
   }

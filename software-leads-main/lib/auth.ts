@@ -43,9 +43,15 @@ export const authApi = {
 
   // Get current user
   me: async (): Promise<{ user: User }> => {
+    const headers = new Headers();
+    const token = getToken();
+    if (token) {
+      headers.set("Authorization", `Bearer ${token}`);
+    }
+
     const res = await fetch(`${BASE}/api/auth/me`, {
       method: "GET",
-      headers: { ...getAuthHeaders() },
+      headers,
       credentials: "include", // Important for cookies
     });
 
