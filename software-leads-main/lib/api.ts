@@ -37,14 +37,19 @@ async function request<T = any>(
   const url = new URL(`${BASE}${path}`);
   if (params) Object.entries(params).forEach(([k, v]) => url.searchParams.set(k, v));
 
-  const authHeader = typeof window !== "undefined" && localStorage.getItem("access_token")
-    ? { Authorization: `Bearer ${localStorage.getItem("access_token")}` }
-    : {};
+  const headers = new Headers(rest.headers);
+  if (!headers.has("Content-Type")) {
+    headers.set("Content-Type", "application/json");
+  }
+  if (typeof window !== "undefined") {
+    const token = localStorage.getItem("access_token");
+    if (token) headers.set("Authorization", `Bearer ${token}`);
+  }
 
   const res = await fetch(url.toString(), {
-    headers: { "Content-Type": "application/json", ...authHeader, ...rest.headers },
-    credentials: "include", // Include HTTP-only cookies
     ...rest,
+    headers,
+    credentials: "include", // Include HTTP-only cookies
   });
 
   // Access token expired → rotate via refresh and retry once.

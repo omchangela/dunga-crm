@@ -129,10 +129,17 @@ export const authApi = {
 // ── Admin user management (admin-only) ──────────────────────────────────────────
 
 async function authRequest(path: string, init: RequestInit = {}) {
+  const headers = new Headers(init.headers);
+  if (!headers.has("Content-Type")) {
+    headers.set("Content-Type", "application/json");
+  }
+  const authHeaders = getAuthHeaders();
+  Object.entries(authHeaders).forEach(([k, v]) => headers.set(k, v));
+
   const res = await fetch(`${BASE}${path}`, {
-    headers: { "Content-Type": "application/json", ...getAuthHeaders(), ...init.headers },
-    credentials: "include",
     ...init,
+    headers,
+    credentials: "include",
   });
   const body = await res.json().catch(() => ({}));
   if (!res.ok) {
