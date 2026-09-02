@@ -23,23 +23,33 @@ function redirectToDevLogin() {
   window.location.href = `/developer/login?redirect=${encodeURIComponent(window.location.pathname)}`;
 }
 
+export const getDeveloperToken = () => typeof window !== "undefined" ? localStorage.getItem("developer_token") : null;
+
 async function devFetch(
   path: string,
   options?: RequestInit,
   _retried = false
 ): Promise<any> {
+  const headers = new Headers(options?.headers);
+  if (!headers.has("Content-Type")) {
+    headers.set("Content-Type", "application/json");
+  }
+  const token = getDeveloperToken();
+  if (token) headers.set("Authorization", `Bearer ${token}`);
+
   const res = await fetch(`${BASE}${path}`, {
     ...options,
     credentials: "include",
-    headers: {
-      "Content-Type": "application/json",
-      ...options?.headers,
-    },
+    headers,
   });
 
   if (res.status === 401 && !_retried && !path.includes("/auth/") && !path.includes("/login")) {
     const refreshed = await tryRefreshDev();
     if (refreshed) return devFetch(path, options, true);
+    if (typeof window !== "undefined") {
+      localStorage.removeItem("developer_token");
+      localStorage.removeItem("developer_user");
+    }
     redirectToDevLogin();
   }
 
@@ -56,13 +66,23 @@ async function devFetch(
 
 export const developerApi = {
   // ─── AUTH ──────────────────────────────────────────────────────────────────
-  login: (email: string, password: string) =>
-    fetch(`${BASE}/api/developer/login`, {
+  login: async (email: string, password: string) => {
+    const res = await fetch(`${BASE}/api/developer/login`, {
       method: "POST",
       credentials: "include",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ email, password }),
-    }).then((r) => r.json()),
+    });
+    const json = await res.json().catch(() => ({}));
+    const token = json?.data?.token ?? json?.token;
+    if (token && typeof window !== "undefined") {
+      localStorage.setItem("developer_token", token);
+    }
+    if (json?.data && typeof window !== "undefined") {
+      localStorage.setItem("developer_user", JSON.stringify(json.data));
+    }
+    return json;
+  },
 
   logout: () =>
     devFetch("/api/developer/logout", { method: "POST" }),

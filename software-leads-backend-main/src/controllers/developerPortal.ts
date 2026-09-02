@@ -110,7 +110,8 @@ export const developerLogin = async (req: Request, res: Response) => {
             email:      developer.email,
             role:       developer.role,
             experience: developer.experience,
-            skills:     developer.skills
+            skills:     developer.skills,
+            token:      accessToken
         }
     })
 }

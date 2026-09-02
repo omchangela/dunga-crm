@@ -606,7 +606,8 @@ export const employeeLogin = async (req: Request, res: Response) => {
             name:     employee.name,
             email:    employee.email,
             role:     employee.role,
-            phone:    employee.phone
+            phone:    employee.phone,
+            token:    accessToken
         }
     })
 }

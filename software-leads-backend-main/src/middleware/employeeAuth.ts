@@ -13,7 +13,11 @@ export const requireEmployee = (
     res:  Response,
     next: NextFunction
 ) => {
-    const token = req.cookies.employee_access_token
+    let token = req.cookies.employee_access_token
+    const authHeader = req.headers.authorization || (req.headers as any)['Authorization']
+    if (!token && typeof authHeader === 'string' && authHeader.toLowerCase().startsWith('bearer ')) {
+        token = authHeader.slice(7).trim()
+    }
 
     if (!token) {
         res.status(401).json({

@@ -38,18 +38,51 @@ const DEVELOPER_ROUTES = [
 ];
 
 export function DeveloperAuthProvider({ children }: { children: React.ReactNode }) {
-  const [developer, setDeveloper] = useState<DeveloperUser | null>(null);
+  const [developer, setDeveloper] = useState<DeveloperUser | null>(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const cached = localStorage.getItem("developer_user");
+        return cached ? JSON.parse(cached) : null;
+      } catch {
+        return null;
+      }
+    }
+    return null;
+  });
   const [loading, setLoading]     = useState(true);
   const router     = useRouter();
   const pathname   = usePathname();
   const redirected = useRef(false);
 
   useEffect(() => {
+    const token = typeof window !== "undefined" ? localStorage.getItem("developer_token") : null;
+    const isLoginPage = pathname === "/developer/login";
+
+    if (!token && isLoginPage) {
+      setLoading(false);
+      return;
+    }
+
     developerApi.me()
-      .then((data) => setDeveloper(data ?? null))
-      .catch(() => setDeveloper(null))
+      .then((data) => {
+        setDeveloper(data ?? null);
+        if (data && typeof window !== "undefined") {
+          localStorage.setItem("developer_user", JSON.stringify(data));
+        }
+      })
+      .catch(() => {
+        if (!token && isLoginPage) {
+          setDeveloper(null);
+        } else {
+          setDeveloper(null);
+          if (typeof window !== "undefined") {
+            localStorage.removeItem("developer_token");
+            localStorage.removeItem("developer_user");
+          }
+        }
+      })
       .finally(() => setLoading(false));
-  }, []);
+  }, [pathname]);
 
   useEffect(() => {
     if (loading) return;
@@ -64,14 +97,22 @@ export function DeveloperAuthProvider({ children }: { children: React.ReactNode 
   async function login(email: string, password: string) {
     const res = await developerApi.login(email, password);
     if (!res.success) throw new Error(res.message ?? "Login failed.");
-    const me = await developerApi.me();
-    setDeveloper(me);
+    if (res.data) {
+      setDeveloper(res.data);
+      if (typeof window !== "undefined") {
+        localStorage.setItem("developer_user", JSON.stringify(res.data));
+      }
+    }
     window.location.href = "/developer/dashboard";
   }
 
   async function logout() {
     try { await developerApi.logout(); } catch { /* ignore */ }
     setDeveloper(null);
+    if (typeof window !== "undefined") {
+      localStorage.removeItem("developer_token");
+      localStorage.removeItem("developer_user");
+    }
     router.push("/developer/login");
   }
 

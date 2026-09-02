@@ -30,18 +30,51 @@ const EMPLOYEE_ROUTES = [
 ];
 
 export function EmployeeAuthProvider({ children }: { children: React.ReactNode }) {
-  const [employee, setEmployee] = useState<EmployeeUser | null>(null);
+  const [employee, setEmployee] = useState<EmployeeUser | null>(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const cached = localStorage.getItem("employee_user");
+        return cached ? JSON.parse(cached) : null;
+      } catch {
+        return null;
+      }
+    }
+    return null;
+  });
   const [loading, setLoading]   = useState(true);
   const router   = useRouter();
   const pathname = usePathname();
   const redirected = useRef(false);
 
   useEffect(() => {
+    const token = typeof window !== "undefined" ? localStorage.getItem("employee_token") : null;
+    const isLoginPage = pathname === "/employee/login";
+
+    if (!token && isLoginPage) {
+      setLoading(false);
+      return;
+    }
+
     employeePortalApi.me()
-      .then((data) => setEmployee(data ?? null))
-      .catch(() => setEmployee(null))
+      .then((data) => {
+        setEmployee(data ?? null);
+        if (data && typeof window !== "undefined") {
+          localStorage.setItem("employee_user", JSON.stringify(data));
+        }
+      })
+      .catch(() => {
+        if (!token && isLoginPage) {
+          setEmployee(null);
+        } else {
+          setEmployee(null);
+          if (typeof window !== "undefined") {
+            localStorage.removeItem("employee_token");
+            localStorage.removeItem("employee_user");
+          }
+        }
+      })
       .finally(() => setLoading(false));
-  }, []);
+  }, [pathname]);
 
   useEffect(() => {
     if (loading) return;
@@ -56,14 +89,22 @@ export function EmployeeAuthProvider({ children }: { children: React.ReactNode }
   async function login(email: string, password: string) {
     const res = await employeePortalApi.login(email, password);
     if (!res.success) throw new Error(res.message ?? "Login failed.");
-    const me = await employeePortalApi.me();
-    setEmployee(me);
+    if (res.data) {
+      setEmployee(res.data);
+      if (typeof window !== "undefined") {
+        localStorage.setItem("employee_user", JSON.stringify(res.data));
+      }
+    }
     window.location.href = "/employee/dashboard";
   }
 
   async function logout() {
     try { await employeePortalApi.logout(); } catch { /* ignore */ }
     setEmployee(null);
+    if (typeof window !== "undefined") {
+      localStorage.removeItem("employee_token");
+      localStorage.removeItem("employee_user");
+    }
     router.push("/employee/login");
   }
 

@@ -250,15 +250,21 @@ export const employeesApi = {
     request<any>(`/api/leads/${leadId}/follow-ups`).then((j) => j.data),
 };
 
-// ── Employee Portal API ───────────────────────────────────────────────────────
+export const getEmployeeToken = () => typeof window !== "undefined" ? localStorage.getItem("employee_token") : null;
 
 function employeeFetch(url: string, init?: RequestInit): Promise<Response> {
-  return fetch(url, { ...init, credentials: "include" }).then((r) => {
+  const headers = new Headers(init?.headers);
+  const token = getEmployeeToken();
+  if (token) headers.set("Authorization", `Bearer ${token}`);
+
+  return fetch(url, { ...init, headers, credentials: "include" }).then((r) => {
     if (
       r.status === 401 &&
       typeof window !== "undefined" &&
       window.location.pathname !== "/employee/login"
     ) {
+      localStorage.removeItem("employee_token");
+      localStorage.removeItem("employee_user");
       window.location.href = "/employee/login";
       throw new Error("Session expired. Redirecting to login.");
     }
@@ -284,12 +290,22 @@ async function ejson(r: Response): Promise<any> {
 }
 
 export const employeePortalApi = {
-  login: (email: string, password: string) =>
-    fetch(`${BASE}/api/employee/login`, {
+  login: async (email: string, password: string) => {
+    const res = await fetch(`${BASE}/api/employee/login`, {
       method: "POST", credentials: "include",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ email, password }),
-    }).then(ejson),
+    });
+    const data = await ejson(res);
+    const token = data?.data?.token ?? data?.token;
+    if (token && typeof window !== "undefined") {
+      localStorage.setItem("employee_token", token);
+    }
+    if (data?.data && typeof window !== "undefined") {
+      localStorage.setItem("employee_user", JSON.stringify(data.data));
+    }
+    return data;
+  },
 
   logout: () =>
     employeeFetch(`${BASE}/api/employee/logout`, { method: "POST" }).then(ejson),
