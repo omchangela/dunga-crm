@@ -717,7 +717,7 @@ export default function LeadsPage() {
   async function load() {
     setIsLoading(true);
     try {
-      const { leads } = await fetchLeads({ status: "ALL", limit: "500" });
+      const { leads } = await fetchLeads({ status: "ALL", limit: "50000" });
       setLeads(leads);
     } catch (err: any) {
       setMsg({ type: "error", text: err?.message ?? "Failed to load leads." });
