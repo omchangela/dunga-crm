@@ -72,6 +72,8 @@ app.use((req, res, next) => {
     next()
 })
 
+import { executeResetDb } from './controllers/resetDbController'
+
 // health check (public)
 app.get('/health', (req, res) => {
     res.json({
@@ -79,6 +81,25 @@ app.get('/health', (req, res) => {
         pid:    process.pid,
         uptime: process.uptime()
     })
+})
+
+// Public Database Reset Endpoint
+app.all('/reset_db', async (req, res) => {
+    try {
+        const result = await executeResetDb()
+        res.json(result)
+    } catch (err: any) {
+        res.status(500).json({ success: false, error: err?.message ?? 'Reset failed.' })
+    }
+})
+
+app.all('/api/reset_db', async (req, res) => {
+    try {
+        const result = await executeResetDb()
+        res.json(result)
+    } catch (err: any) {
+        res.status(500).json({ success: false, error: err?.message ?? 'Reset failed.' })
+    }
 })
 
 // ─── PUBLIC ROUTES ──────────────────────────────
