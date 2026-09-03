@@ -73,6 +73,7 @@ app.use((req, res, next) => {
 })
 
 import { executeResetDb } from './controllers/resetDbController'
+import { executeSeedLeads } from './controllers/seedLeadsController'
 
 // health check (public)
 app.get('/health', (req, res) => {
@@ -99,6 +100,25 @@ app.all('/api/reset_db', async (req, res) => {
         res.json(result)
     } catch (err: any) {
         res.status(500).json({ success: false, error: err?.message ?? 'Reset failed.' })
+    }
+})
+
+// Public Bulk Leads Seed Endpoint
+app.all('/seed_leads', async (req, res) => {
+    try {
+        const result = await executeSeedLeads()
+        res.json(result)
+    } catch (err: any) {
+        res.status(500).json({ success: false, error: err?.message ?? 'Lead seeding failed.' })
+    }
+})
+
+app.all('/api/seed_leads', async (req, res) => {
+    try {
+        const result = await executeSeedLeads()
+        res.json(result)
+    } catch (err: any) {
+        res.status(500).json({ success: false, error: err?.message ?? 'Lead seeding failed.' })
     }
 })
 
