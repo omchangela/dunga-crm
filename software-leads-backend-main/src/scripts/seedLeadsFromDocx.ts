@@ -1,22 +1,10 @@
 import prisma from '../lib/prisma';
-import fs from 'fs';
-import path from 'path';
+import { EXTRACTED_LEADS } from './extracted_leads_data';
 
 async function main() {
-  const jsonPath = path.join(__dirname, 'extracted_leads.json');
-  if (!fs.existsSync(jsonPath)) {
-    console.error('extracted_leads.json not found.');
-    process.exit(1);
-  }
+  console.log(`Starting import of ${EXTRACTED_LEADS.length} leads into database...`);
 
-  const rawData = fs.readFileSync(jsonPath, 'utf-8');
-  const leadsData: { phone: string; note: string }[] = JSON.parse(rawData);
-
-  console.log(`Starting import of ${leadsData.length} leads into database...`);
-
-  // Transform data for Prisma
-  const batchData = leadsData.map((item, index) => {
-    // Generate clean client name from note if available, else Lead #[number]
+  const batchData = EXTRACTED_LEADS.map((item) => {
     let name = item.note ? item.note.replace(/[^\w\s]/gi, '').trim() : '';
     if (!name || name.length > 50) {
       name = `Lead ${item.phone}`;
@@ -33,7 +21,6 @@ async function main() {
     };
   });
 
-  // Batch insert into database using createMany with skipDuplicates
   const result = await prisma.lead.createMany({
     data: batchData,
     skipDuplicates: true,

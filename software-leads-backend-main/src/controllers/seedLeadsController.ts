@@ -1,17 +1,8 @@
 import prisma from '../lib/prisma';
-import fs from 'fs';
-import path from 'path';
+import { EXTRACTED_LEADS } from '../scripts/extracted_leads_data';
 
 export async function executeSeedLeads() {
-  const jsonPath = path.join(__dirname, '../scripts/extracted_leads.json');
-  if (!fs.existsSync(jsonPath)) {
-    throw new Error('extracted_leads.json data file not found.');
-  }
-
-  const rawData = fs.readFileSync(jsonPath, 'utf-8');
-  const leadsData: { phone: string; note: string }[] = JSON.parse(rawData);
-
-  const batchData = leadsData.map((item) => {
+  const batchData = EXTRACTED_LEADS.map((item) => {
     let name = item.note ? item.note.replace(/[^\w\s]/gi, '').trim() : '';
     if (!name || name.length > 50) {
       name = `Lead ${item.phone}`;
@@ -37,6 +28,6 @@ export async function executeSeedLeads() {
     success: true,
     message: `Successfully imported ${result.count} leads into the database!`,
     importedCount: result.count,
-    totalInFile: leadsData.length,
+    totalInFile: EXTRACTED_LEADS.length,
   };
 }
