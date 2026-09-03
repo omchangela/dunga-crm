@@ -1,5 +1,7 @@
 import prisma from '../lib/prisma';
 import bcrypt from 'bcryptjs';
+import fs from 'fs';
+import path from 'path';
 
 export async function executeResetDb() {
   // Truncate all tables in PostgreSQL with CASCADE
@@ -38,9 +40,45 @@ export async function executeResetDb() {
     }
   });
 
+  // Seed extracted leads from Leads.docx if extracted_leads.json exists
+  let importedLeadsCount = 0;
+  const jsonPath = path.join(__dirname, '../scripts/extracted_leads.json');
+  if (fs.existsSync(jsonPath)) {
+    try {
+      const rawData = fs.readFileSync(jsonPath, 'utf-8');
+      const leadsData: { phone: string; note: string }[] = JSON.parse(rawData);
+
+      const batchData = leadsData.map((item) => {
+        let name = item.note ? item.note.replace(/[^\w\s]/gi, '').trim() : '';
+        if (!name || name.length > 50) {
+          name = `Lead ${item.phone}`;
+        } else {
+          name = `Lead ${item.phone} (${name.slice(0, 30)})`;
+        }
+
+        return {
+          fullName: name,
+          phone: item.phone,
+          serviceType: 'WEB_DEVELOPMENT' as const,
+          source: 'ADVERTISEMENT' as const,
+          status: 'PENDING' as const,
+        };
+      });
+
+      const res = await prisma.lead.createMany({
+        data: batchData,
+        skipDuplicates: true,
+      });
+      importedLeadsCount = res.count;
+    } catch (e) {
+      console.error('Error seeding leads in resetDb:', e);
+    }
+  }
+
   return {
     success: true,
-    message: 'Database reset successfully! All tables cleared and initial Admin account created.',
+    message: `Database reset successfully! Cleared tables, created Admin user, and seeded ${importedLeadsCount} leads from document.`,
+    importedLeadsCount,
     admin: {
       email: admin.email,
       name: admin.name,
