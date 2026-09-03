@@ -11,7 +11,9 @@
     "start:worker:pdf": "node dist/workers/pdf.worker.js",
     "start:worker:import": "node dist/workers/import.worker.js",
     "postinstall": "prisma generate",
-    "seed:accounts": "tsx src/scripts/seedAccounts.ts",
+    "seed:accounts": "npx tsx src/scripts/seedAccounts.ts",
+    "seed:admin": "npx tsx src/scripts/seedAdmin.ts",
+    "db:reset:prod": "prisma db push --force-reset && npx tsx src/scripts/seedAdmin.ts",
     "build": "tsc && npm run copy:assets",
     "copy:assets": "node -e \"const fs=require('fs');const path=require('path');const src='src/lib/pdf/styles/estimation.css';const dest='dist/lib/pdf/styles/estimation.css';fs.mkdirSync(path.dirname(dest),{recursive:true});fs.copyFileSync(src,dest);console.log('CSS copied');\""
   },
