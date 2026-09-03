@@ -3,31 +3,27 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, User, Phone, Mail, Code2, Layers, Check } from "lucide-react";
 import { Button }   from "@/components/ui/button";
-import { Input }    from "@/components/ui/input";
-import { Label }    from "@/components/ui/label";
-import { Select }   from "@/components/ui/select";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { PageHeader } from "@/components/layout/page-header";
 import { developersApi, fetchDeveloperEnums } from "@/lib/api";
 
 const SKILL_COLORS: Record<string, string> = {
-  "Frontend Development":  "bg-blue-50 text-blue-700 border-blue-200",
-  "Backend Development":   "bg-purple-50 text-purple-700 border-purple-200",
-  "Database Management":   "bg-orange-50 text-orange-700 border-orange-200",
-  "Server Maintenance":    "bg-red-50 text-red-700 border-red-200",
-  "Mobile Development":    "bg-green-50 text-green-700 border-green-200",
-  "DevOps / CI/CD":        "bg-yellow-50 text-yellow-700 border-yellow-200",
-  "UI/UX Design":          "bg-pink-50 text-pink-700 border-pink-200",
-  "QA / Testing":          "bg-teal-50 text-teal-700 border-teal-200",
-  "Cloud Services":        "bg-sky-50 text-sky-700 border-sky-200",
-  "API Development":       "bg-indigo-50 text-indigo-700 border-indigo-200",
-  "Cybersecurity":         "bg-rose-50 text-rose-700 border-rose-200",
-  "Machine Learning / AI": "bg-emerald-50 text-emerald-700 border-emerald-200",
+  "Frontend Development":  "bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950/40 dark:border-blue-800 dark:text-blue-300",
+  "Backend Development":   "bg-purple-50 text-purple-700 border-purple-200 dark:bg-purple-950/40 dark:border-purple-800 dark:text-purple-300",
+  "Database Management":   "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/40 dark:border-amber-800 dark:text-amber-300",
+  "Server Maintenance":    "bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-950/40 dark:border-rose-800 dark:text-rose-300",
+  "Mobile Development":    "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:border-emerald-800 dark:text-emerald-300",
+  "DevOps / CI/CD":        "bg-orange-50 text-orange-700 border-orange-200 dark:bg-orange-950/40 dark:border-orange-800 dark:text-orange-300",
+  "UI/UX Design":          "bg-pink-50 text-pink-700 border-pink-200 dark:bg-pink-950/40 dark:border-pink-800 dark:text-pink-300",
+  "QA / Testing":          "bg-teal-50 text-teal-700 border-teal-200 dark:bg-teal-950/40 dark:border-teal-800 dark:text-teal-300",
+  "Cloud Services":        "bg-sky-50 text-sky-700 border-sky-200 dark:bg-sky-950/40 dark:border-sky-800 dark:text-sky-300",
+  "API Development":       "bg-indigo-50 text-indigo-700 border-indigo-200 dark:bg-indigo-950/40 dark:border-indigo-800 dark:text-indigo-300",
+  "Cybersecurity":         "bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-950/40 dark:border-rose-800 dark:text-rose-300",
+  "Machine Learning / AI": "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:border-emerald-800 dark:text-emerald-300",
 };
+
 export function skillClass(s: string) {
-  return SKILL_COLORS[s] ?? "bg-gray-50 text-gray-700 border-gray-200";
+  return SKILL_COLORS[s] ?? "bg-slate-50 text-slate-700 border-slate-200 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-300";
 }
 
 export default function NewDeveloperPage() {
@@ -109,118 +105,137 @@ export default function NewDeveloperPage() {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="mx-auto flex max-w-2xl items-center gap-3">
-        <Button asChild variant="ghost" size="icon">
-          <Link href="/developers"><ArrowLeft className="h-4 w-4" /></Link>
-        </Button>
-        <PageHeader title="Add Developer" subtitle="Register a new developer profile." />
+    <div className="space-y-8 pb-10">
+
+      {/* ══ HERO BANNER ══ */}
+      <section className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-slate-900 via-indigo-950 to-blue-950 p-6 md:p-8 text-white shadow-xl border border-slate-800">
+        <div className="pointer-events-none absolute -right-16 -top-16 h-72 w-72 rounded-full bg-blue-500/15 blur-3xl" />
+        <div className="pointer-events-none absolute -bottom-16 left-1/3 h-64 w-64 rounded-full bg-indigo-500/15 blur-3xl" />
+
+        <div className="relative z-10 flex flex-col gap-5">
+          <Link
+            href="/developers"
+            className="inline-flex items-center gap-1.5 self-start rounded-full bg-white/10 px-3.5 py-1.5 text-xs font-semibold text-blue-200 backdrop-blur-md border border-white/15 transition hover:bg-white/20"
+          >
+            <ArrowLeft className="h-3.5 w-3.5" />
+            Back to Developers
+          </Link>
+
+          <div>
+            <h1 className="text-2xl font-extrabold tracking-tight text-white md:text-3xl">
+              Register New Developer
+            </h1>
+            <p className="mt-1 text-sm text-slate-300">
+              Add a new engineering team member to the developer directory and project assignment pool.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      {/* Form Container */}
+      <div className="max-w-2xl mx-auto overflow-hidden rounded-3xl border border-slate-200/80 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+        <form onSubmit={handleSubmit} noValidate className="space-y-5">
+
+          {/* Name */}
+          <div className="space-y-1.5">
+            <label htmlFor="name" className="block text-xs font-bold text-slate-700 dark:text-slate-300">Full Name *</label>
+            <input id="name" name="name" placeholder="e.g. Arun Sharma"
+              value={form.name} onChange={handleChange}
+              className="h-11 w-full rounded-2xl border border-slate-200/80 bg-slate-50 px-4 text-xs font-semibold text-slate-900 dark:border-slate-800 dark:bg-slate-900 dark:text-white focus:border-blue-600 focus:outline-none" />
+            {errors.name && <p className="text-xs font-bold text-rose-600">{errors.name}</p>}
+          </div>
+
+          {/* Phone + Email */}
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-1.5">
+              <label htmlFor="phone" className="block text-xs font-bold text-slate-700 dark:text-slate-300">Phone *</label>
+              <input id="phone" name="phone" type="tel" placeholder="10-digit number"
+                value={form.phone} onChange={handleChange} maxLength={10}
+                className="h-11 w-full rounded-2xl border border-slate-200/80 bg-slate-50 px-4 text-xs font-semibold text-slate-900 dark:border-slate-800 dark:bg-slate-900 dark:text-white focus:border-blue-600 focus:outline-none" />
+              {errors.phone && <p className="text-xs font-bold text-rose-600">{errors.phone}</p>}
+            </div>
+            <div className="space-y-1.5">
+              <label htmlFor="email" className="block text-xs font-bold text-slate-700 dark:text-slate-300">Email Address</label>
+              <input id="email" name="email" type="email" placeholder="optional"
+                value={form.email} onChange={handleChange}
+                className="h-11 w-full rounded-2xl border border-slate-200/80 bg-slate-50 px-4 text-xs font-semibold text-slate-900 dark:border-slate-800 dark:bg-slate-900 dark:text-white focus:border-blue-600 focus:outline-none" />
+              {errors.email && <p className="text-xs font-bold text-rose-600">{errors.email}</p>}
+            </div>
+          </div>
+
+          {/* Role + Experience */}
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-1.5">
+              <label htmlFor="role" className="block text-xs font-bold text-slate-700 dark:text-slate-300">Engineering Role *</label>
+              <select id="role" name="role" value={form.role} onChange={handleChange}
+                className="h-11 w-full rounded-2xl border border-slate-200/80 bg-slate-50 px-3 text-xs font-semibold text-slate-900 dark:border-slate-800 dark:bg-slate-900 dark:text-white focus:border-blue-600 focus:outline-none">
+                <option value="">Select role</option>
+                {roleOptions.map((r) => <option key={r} value={r}>{r}</option>)}
+              </select>
+              {errors.role && <p className="text-xs font-bold text-rose-600">{errors.role}</p>}
+            </div>
+            <div className="space-y-1.5">
+              <label htmlFor="experience" className="block text-xs font-bold text-slate-700 dark:text-slate-300">Experience Level *</label>
+              <select id="experience" name="experience" value={form.experience} onChange={handleChange}
+                className="h-11 w-full rounded-2xl border border-slate-200/80 bg-slate-50 px-3 text-xs font-semibold text-slate-900 dark:border-slate-800 dark:bg-slate-900 dark:text-white focus:border-blue-600 focus:outline-none">
+                <option value="">Select experience</option>
+                {experienceOptions.map((e) => <option key={e} value={e}>{e}</option>)}
+              </select>
+              {errors.experience && <p className="text-xs font-bold text-rose-600">{errors.experience}</p>}
+            </div>
+          </div>
+
+          {/* Status */}
+          <div className="space-y-1.5">
+            <label htmlFor="status" className="block text-xs font-bold text-slate-700 dark:text-slate-300">Status</label>
+            <select id="status" name="status" value={form.status} onChange={handleChange}
+              className="h-11 w-full rounded-2xl border border-slate-200/80 bg-slate-50 px-3 text-xs font-semibold text-slate-900 dark:border-slate-800 dark:bg-slate-900 dark:text-white focus:border-blue-600 focus:outline-none">
+              <option value="Active">Active</option>
+              <option value="Inactive">Inactive</option>
+            </select>
+          </div>
+
+          {/* Skills */}
+          <div className="space-y-2 pt-2">
+            <label className="block text-xs font-bold text-slate-700 dark:text-slate-300">Skills Matrix *</label>
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+              {skillOptions.map((skill) => {
+                const checked = selectedSkills.includes(skill);
+                return (
+                  <button
+                    key={skill}
+                    type="button"
+                    onClick={() => toggleSkill(skill)}
+                    className={`flex items-center gap-2 rounded-xl border px-3 py-2.5 text-xs font-bold transition ${
+                      checked
+                        ? `${skillClass(skill)} ring-1 ring-blue-500/30`
+                        : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-400"
+                    }`}
+                  >
+                    <span className={`h-4 w-4 shrink-0 rounded-lg border ${
+                      checked ? "border-blue-600 bg-blue-600 text-white" : "border-slate-300"
+                    } flex items-center justify-center`}>
+                      {checked && <Check className="h-3 w-3 stroke-[3]" />}
+                    </span>
+                    {skill}
+                  </button>
+                );
+              })}
+            </div>
+            {errors.skills && <p className="text-xs font-bold text-rose-600">{errors.skills}</p>}
+          </div>
+
+          <div className="flex items-center gap-3 pt-4 border-t border-slate-100 dark:border-slate-800">
+            <button type="submit" disabled={isSubmitting} className="rounded-2xl bg-blue-600 px-6 py-3 text-xs font-bold text-white shadow-md hover:bg-blue-700 disabled:opacity-50">
+              {isSubmitting ? "Saving..." : "Add Developer Record"}
+            </button>
+            <button type="button" onClick={() => router.back()} disabled={isSubmitting} className="rounded-2xl border border-slate-200 bg-white px-5 py-3 text-xs font-bold text-slate-600 hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-400">
+              Cancel
+            </button>
+          </div>
+
+        </form>
       </div>
-
-      <Card className="mx-auto max-w-2xl">
-        <CardHeader><CardTitle>Developer Details</CardTitle></CardHeader>
-        <CardContent>
-          <form onSubmit={handleSubmit} noValidate className="space-y-5">
-
-            {/* Name */}
-            <div className="space-y-1.5">
-              <Label htmlFor="name">Full Name <span className="text-destructive">*</span></Label>
-              <Input id="name" name="name" placeholder="e.g. Arun Sharma"
-                value={form.name} onChange={handleChange} />
-              {errors.name && <p className="text-xs text-destructive">{errors.name}</p>}
-            </div>
-
-            {/* Phone + Email */}
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div className="space-y-1.5">
-                <Label htmlFor="phone">Phone <span className="text-destructive">*</span></Label>
-                <Input id="phone" name="phone" type="tel" placeholder="10-digit number"
-                  value={form.phone} onChange={handleChange} maxLength={10} />
-                {errors.phone && <p className="text-xs text-destructive">{errors.phone}</p>}
-              </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="email">Email</Label>
-                <Input id="email" name="email" type="email" placeholder="optional"
-                  value={form.email} onChange={handleChange} />
-                {errors.email && <p className="text-xs text-destructive">{errors.email}</p>}
-              </div>
-            </div>
-
-            {/* Role + Experience */}
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div className="space-y-1.5">
-                <Label htmlFor="role">Role <span className="text-destructive">*</span></Label>
-                <Select id="role" name="role" value={form.role} onChange={handleChange} placeholder="Select role">
-                  <option value="">Select role</option>
-                  {roleOptions.map((r) => <option key={r} value={r}>{r}</option>)}
-                </Select>
-                {errors.role && <p className="text-xs text-destructive">{errors.role}</p>}
-              </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="experience">Experience <span className="text-destructive">*</span></Label>
-                <Select id="experience" name="experience" value={form.experience} onChange={handleChange}>
-                  <option value="">Select experience</option>
-                  {experienceOptions.map((e) => <option key={e} value={e}>{e}</option>)}
-                </Select>
-                {errors.experience && <p className="text-xs text-destructive">{errors.experience}</p>}
-              </div>
-            </div>
-
-            {/* Status */}
-            <div className="space-y-1.5">
-              <Label htmlFor="status">Status</Label>
-              <Select id="status" name="status" value={form.status} onChange={handleChange}>
-                <option value="Active">Active</option>
-                <option value="Inactive">Inactive</option>
-              </Select>
-            </div>
-
-            {/* Skills */}
-            <div className="space-y-2">
-              <Label>Skills <span className="text-destructive">*</span></Label>
-              <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-                {skillOptions.map((skill) => {
-                  const checked = selectedSkills.includes(skill);
-                  return (
-                    <button
-                      key={skill}
-                      type="button"
-                      onClick={() => toggleSkill(skill)}
-                      className={`flex items-center gap-2 rounded-lg border px-3 py-2 text-xs font-medium transition-all ${
-                        checked
-                          ? `${skillClass(skill)} ring-1 ring-current/30`
-                          : "border-[#e5e9f2] bg-white text-gray-500 hover:border-[#0971fe]/30 hover:text-gray-700"
-                      }`}
-                    >
-                      <span className={`h-3.5 w-3.5 shrink-0 rounded border ${
-                        checked ? "border-current bg-current" : "border-gray-300"
-                      } flex items-center justify-center`}>
-                        {checked && (
-                          <svg viewBox="0 0 8 6" fill="none" className="h-2 w-2">
-                            <path d="M1 3l2 2 4-4" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                          </svg>
-                        )}
-                      </span>
-                      {skill}
-                    </button>
-                  );
-                })}
-              </div>
-              {errors.skills && <p className="text-xs text-destructive">{errors.skills}</p>}
-            </div>
-
-            <div className="flex items-center gap-3 pt-2">
-              <Button type="submit" disabled={isSubmitting}>
-                {isSubmitting ? "Saving…" : "Add Developer"}
-              </Button>
-              <Button type="button" variant="outline" onClick={() => router.back()} disabled={isSubmitting}>
-                Cancel
-              </Button>
-            </div>
-
-          </form>
-        </CardContent>
-      </Card>
     </div>
   );
 }

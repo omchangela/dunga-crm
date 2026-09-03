@@ -4,12 +4,6 @@ import { useState, useEffect, useMemo } from "react";
 import { useRouter, useParams } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
-import { Button }    from "@/components/ui/button";
-import { Input }     from "@/components/ui/input";
-import { Label }     from "@/components/ui/label";
-import { Select }    from "@/components/ui/select";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { PageHeader } from "@/components/layout/page-header";
 import { fetchLead, leadsApi } from "@/lib/api";
 import { e as toEnum } from "@/lib/enum-maps";
 import citiesData from "@/app/Indian_Cities_In_States.json";
@@ -94,7 +88,7 @@ export default function EditLeadPage() {
   }
 
   function handleChange(e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) {
-    if (isSubmitting) return; // Prevent entry manipulation while saving
+    if (isSubmitting) return;
     const { name, value } = e.target;
     if (name === "state") {
       setForm((p) => ({ ...p, state: value, city: "" }));
@@ -106,7 +100,7 @@ export default function EditLeadPage() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (isSubmitting || !validate()) return; // Idempotency check
+    if (isSubmitting || !validate()) return;
     setIsSubmitting(true);
 
     try {
@@ -136,108 +130,133 @@ export default function EditLeadPage() {
   }
 
   if (!lead) {
-    return <div className="flex items-center justify-center py-20 text-sm text-[#8094ae]">Loading…</div>;
+    return <div className="flex items-center justify-center py-20 text-xs font-bold text-slate-400">Loading lead profile...</div>;
   }
 
   return (
-    <div className="space-y-6">
-      <div className="mx-auto flex max-w-2xl items-center gap-3">
-        {/* Disable back navigation button during submit */}
-        <Button asChild variant="ghost" size="icon" className={isSubmitting ? "pointer-events-none opacity-50" : ""}>
-          <Link href={`/leads/${id}`}><ArrowLeft className="h-4 w-4" /></Link>
-        </Button>
-        <PageHeader title="Edit Lead" subtitle={lead.fullName} />
-      </div>
+    <div className="space-y-8 pb-10">
 
-      <Card className="mx-auto max-w-2xl">
-        <CardHeader><CardTitle>Edit Lead Details</CardTitle></CardHeader>
-        <CardContent>
-          <form onSubmit={handleSubmit} noValidate className="space-y-5">
+      {/* ══ HERO BANNER ══ */}
+      <section className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-slate-900 via-indigo-950 to-blue-950 p-6 md:p-8 text-white shadow-xl border border-slate-800">
+        <div className="pointer-events-none absolute -right-16 -top-16 h-72 w-72 rounded-full bg-blue-500/15 blur-3xl" />
+        <div className="pointer-events-none absolute -bottom-16 left-1/3 h-64 w-64 rounded-full bg-indigo-500/15 blur-3xl" />
 
-            {/* Client Name */}
+        <div className="relative z-10 flex flex-col gap-5">
+          <Link
+            href={`/leads/${id}`}
+            className="inline-flex items-center gap-1.5 self-start rounded-full bg-white/10 px-3.5 py-1.5 text-xs font-semibold text-blue-200 backdrop-blur-md border border-white/15 transition hover:bg-white/20"
+          >
+            <ArrowLeft className="h-3.5 w-3.5" />
+            Back to Lead Details
+          </Link>
+
+          <div>
+            <h1 className="text-2xl font-extrabold tracking-tight text-white md:text-3xl">
+              Edit Lead — {lead.fullName}
+            </h1>
+            <p className="mt-1 text-sm text-slate-300">
+              Update lead details, contact preferences, and service requirements.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      {/* Form Container */}
+      <div className="max-w-2xl mx-auto overflow-hidden rounded-3xl border border-slate-200/80 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+        <form onSubmit={handleSubmit} noValidate className="space-y-5">
+
+          {/* Client Name */}
+          <div className="space-y-1.5">
+            <label htmlFor="fullName" className="block text-xs font-bold text-slate-700 dark:text-slate-300">Client Name *</label>
+            <input id="fullName" name="fullName" value={form.fullName} onChange={handleChange} disabled={isSubmitting}
+              className="h-11 w-full rounded-2xl border border-slate-200/80 bg-slate-50 px-4 text-xs font-semibold text-slate-900 dark:border-slate-800 dark:bg-slate-900 dark:text-white focus:border-blue-600 focus:outline-none" />
+            {errors.fullName && <p className="text-xs font-bold text-rose-600">{errors.fullName}</p>}
+          </div>
+
+          {/* Phone + Email */}
+          <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-1.5">
-              <Label htmlFor="fullName">Client Name <span className="text-destructive">*</span></Label>
-              <Input id="fullName" name="fullName" value={form.fullName} onChange={handleChange} disabled={isSubmitting} />
-              {errors.fullName && <p className="text-xs text-destructive">{errors.fullName}</p>}
+              <label htmlFor="phone" className="block text-xs font-bold text-slate-700 dark:text-slate-300">Phone Number *</label>
+              <input id="phone" name="phone" type="tel" value={form.phone} onChange={handleChange} maxLength={10} disabled={isSubmitting}
+                className="h-11 w-full rounded-2xl border border-slate-200/80 bg-slate-50 px-4 text-xs font-semibold text-slate-900 dark:border-slate-800 dark:bg-slate-900 dark:text-white focus:border-blue-600 focus:outline-none" />
+              {errors.phone && <p className="text-xs font-bold text-rose-600">{errors.phone}</p>}
             </div>
-
-            {/* Phone + Email */}
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div className="space-y-1.5">
-                <Label htmlFor="phone">Phone Number <span className="text-destructive">*</span></Label>
-                <Input id="phone" name="phone" type="tel" value={form.phone} onChange={handleChange} maxLength={10} disabled={isSubmitting} />
-                {errors.phone && <p className="text-xs text-destructive">{errors.phone}</p>}
-              </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="email">Email</Label>
-                <Input id="email" name="email" type="email" placeholder="optional" value={form.email} onChange={handleChange} disabled={isSubmitting} />
-                {errors.email && <p className="text-xs text-destructive">{errors.email}</p>}
-              </div>
-            </div>
-
-            {/* State + City */}
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div className="space-y-1.5">
-                <Label htmlFor="state">State</Label>
-                <Select id="state" name="state" value={form.state} onChange={handleChange} placeholder="Select state" disabled={isSubmitting}>
-                  {STATES.map((s) => <option key={s} value={s}>{s}</option>)}
-                </Select>
-              </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="city">City</Label>
-                <Select id="city" name="city" value={form.city} onChange={handleChange}
-                  placeholder="Select city" disabled={!form.state || isSubmitting}>
-                  {cities.map((c) => <option key={c} value={c}>{c}</option>)}
-                </Select>
-              </div>
-            </div>
-
-            {/* Type of Services + Status */}
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div className="space-y-1.5">
-                <Label htmlFor="projectType">Type of Services <span className="text-destructive">*</span></Label>
-                <Select id="projectType" name="projectType" value={form.projectType} onChange={handleChange} disabled={isSubmitting}>
-                  <option value="">Select type</option>
-                  {PROJECT_TYPES.map((t) => (
-                    <option key={t} value={t}>{t}</option>
-                  ))}
-                </Select>
-                {errors.projectType && <p className="text-xs text-destructive">{errors.projectType}</p>}
-              </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="status">Status <span className="text-destructive">*</span></Label>
-                <Select id="status" name="status" value={form.status} onChange={handleChange} disabled={isSubmitting}>
-                  {STATUSES.map((s) => (
-                    <option key={s.value} value={s.value}>{s.label}</option>
-                  ))}
-                </Select>
-              </div>
-            </div>
-
-            {/* Source */}
             <div className="space-y-1.5">
-              <Label htmlFor="source">Source of Lead <span className="text-destructive">*</span></Label>
-              <Select id="source" name="source" value={form.source} onChange={handleChange} disabled={isSubmitting}>
-                <option value="">Select source</option>
-                {SOURCES.map((s) => (
+              <label htmlFor="email" className="block text-xs font-bold text-slate-700 dark:text-slate-300">Email Address</label>
+              <input id="email" name="email" type="email" placeholder="optional" value={form.email} onChange={handleChange} disabled={isSubmitting}
+                className="h-11 w-full rounded-2xl border border-slate-200/80 bg-slate-50 px-4 text-xs font-semibold text-slate-900 dark:border-slate-800 dark:bg-slate-900 dark:text-white focus:border-blue-600 focus:outline-none" />
+              {errors.email && <p className="text-xs font-bold text-rose-600">{errors.email}</p>}
+            </div>
+          </div>
+
+          {/* State + City */}
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-1.5">
+              <label htmlFor="state" className="block text-xs font-bold text-slate-700 dark:text-slate-300">State</label>
+              <select id="state" name="state" value={form.state} onChange={handleChange} disabled={isSubmitting}
+                className="h-11 w-full rounded-2xl border border-slate-200/80 bg-slate-50 px-3 text-xs font-semibold text-slate-900 dark:border-slate-800 dark:bg-slate-900 dark:text-white focus:border-blue-600 focus:outline-none">
+                <option value="">Select state</option>
+                {STATES.map((s) => <option key={s} value={s}>{s}</option>)}
+              </select>
+            </div>
+            <div className="space-y-1.5">
+              <label htmlFor="city" className="block text-xs font-bold text-slate-700 dark:text-slate-300">City</label>
+              <select id="city" name="city" value={form.city} onChange={handleChange} disabled={!form.state || isSubmitting}
+                className="h-11 w-full rounded-2xl border border-slate-200/80 bg-slate-50 px-3 text-xs font-semibold text-slate-900 dark:border-slate-800 dark:bg-slate-900 dark:text-white focus:border-blue-600 focus:outline-none disabled:opacity-50">
+                <option value="">Select city</option>
+                {cities.map((c) => <option key={c} value={c}>{c}</option>)}
+              </select>
+            </div>
+          </div>
+
+          {/* Type of Services + Status */}
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-1.5">
+              <label htmlFor="projectType" className="block text-xs font-bold text-slate-700 dark:text-slate-300">Type of Services *</label>
+              <select id="projectType" name="projectType" value={form.projectType} onChange={handleChange} disabled={isSubmitting}
+                className="h-11 w-full rounded-2xl border border-slate-200/80 bg-slate-50 px-3 text-xs font-semibold text-slate-900 dark:border-slate-800 dark:bg-slate-900 dark:text-white focus:border-blue-600 focus:outline-none">
+                <option value="">Select type</option>
+                {PROJECT_TYPES.map((t) => (
+                  <option key={t} value={t}>{t}</option>
+                ))}
+              </select>
+              {errors.projectType && <p className="text-xs font-bold text-rose-600">{errors.projectType}</p>}
+            </div>
+            <div className="space-y-1.5">
+              <label htmlFor="status" className="block text-xs font-bold text-slate-700 dark:text-slate-300">Status *</label>
+              <select id="status" name="status" value={form.status} onChange={handleChange} disabled={isSubmitting}
+                className="h-11 w-full rounded-2xl border border-slate-200/80 bg-slate-50 px-3 text-xs font-semibold text-slate-900 dark:border-slate-800 dark:bg-slate-900 dark:text-white focus:border-blue-600 focus:outline-none">
+                {STATUSES.map((s) => (
                   <option key={s.value} value={s.value}>{s.label}</option>
                 ))}
-              </Select>
-              {errors.source && <p className="text-xs text-destructive">{errors.source}</p>}
+              </select>
             </div>
+          </div>
 
-            <div className="flex items-center gap-3 pt-2">
-              <Button type="submit" disabled={isSubmitting}>
-                {isSubmitting ? "Saving…" : "Save Changes"}
-              </Button>
-              <Button type="button" variant="outline" onClick={() => router.back()} disabled={isSubmitting}>
-                Cancel
-              </Button>
-            </div>
+          {/* Source */}
+          <div className="space-y-1.5">
+            <label htmlFor="source" className="block text-xs font-bold text-slate-700 dark:text-slate-300">Source of Lead *</label>
+            <select id="source" name="source" value={form.source} onChange={handleChange} disabled={isSubmitting}
+              className="h-11 w-full rounded-2xl border border-slate-200/80 bg-slate-50 px-3 text-xs font-semibold text-slate-900 dark:border-slate-800 dark:bg-slate-900 dark:text-white focus:border-blue-600 focus:outline-none">
+              <option value="">Select source</option>
+              {SOURCES.map((s) => (
+                <option key={s.value} value={s.value}>{s.label}</option>
+              ))}
+            </select>
+            {errors.source && <p className="text-xs font-bold text-rose-600">{errors.source}</p>}
+          </div>
 
-          </form>
-        </CardContent>
-      </Card>
+          <div className="flex items-center gap-3 pt-4 border-t border-slate-100 dark:border-slate-800">
+            <button type="submit" disabled={isSubmitting} className="rounded-2xl bg-blue-600 px-6 py-3 text-xs font-bold text-white shadow-md hover:bg-blue-700 disabled:opacity-50">
+              {isSubmitting ? "Saving..." : "Save Changes"}
+            </button>
+            <button type="button" onClick={() => router.back()} disabled={isSubmitting} className="rounded-2xl border border-slate-200 bg-white px-5 py-3 text-xs font-bold text-slate-600 hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-400">
+              Cancel
+            </button>
+          </div>
+
+        </form>
+      </div>
     </div>
   );
 }

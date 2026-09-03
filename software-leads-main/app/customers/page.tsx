@@ -6,6 +6,7 @@ import {
   Download, Search, SlidersHorizontal,
   MoreHorizontal, Eye, ChevronLeft, ChevronRight,
   Users, X, Pencil, ChevronDown, FileSpreadsheet,
+  UserCheck, FolderKanban, TrendingUp, Building2,
 } from "lucide-react";
 import Link from "next/link";
 import * as XLSX from "xlsx";
@@ -14,19 +15,25 @@ import { ListSkeleton } from "@/components/ui/skeleton";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 const AVATAR_COLORS = [
-  "bg-blue-500","bg-purple-500","bg-emerald-500","bg-orange-500",
-  "bg-pink-500","bg-teal-500","bg-indigo-500","bg-rose-500",
+  "bg-gradient-to-br from-blue-600 to-indigo-700",
+  "bg-gradient-to-br from-violet-600 to-purple-700",
+  "bg-gradient-to-br from-emerald-600 to-teal-700",
+  "bg-gradient-to-br from-amber-600 to-orange-700",
+  "bg-gradient-to-br from-rose-600 to-pink-700",
+  "bg-gradient-to-br from-cyan-600 to-blue-700",
+  "bg-gradient-to-br from-slate-700 to-slate-900",
 ];
+
 function avatarBg(name: string) {
   let h = 0;
   for (let i = 0; i < name.length; i++) h = name.charCodeAt(i) + ((h << 5) - h);
   return AVATAR_COLORS[Math.abs(h) % AVATAR_COLORS.length];
 }
+
 function initials(name: string) {
   if (!name) return "CU";
   return name.split(" ").slice(0, 2).map((w) => w[0]).join("").toUpperCase();
 }
-
 
 const PAGE_SIZE_OPTIONS = [10, 25, 50] as const;
 
@@ -122,7 +129,6 @@ export default function CustomersPage() {
       (c.loanType ?? "").toLowerCase().includes(q);
     const matchStatus  = !statusFilter  || c.status === statusFilter;
     
-    // Safely treat object values as fallback string descriptions
     const projectValue = typeof c.loanType === 'object' && c.loanType !== null 
       ? (c.loanType.name || JSON.stringify(c.loanType)) 
       : String(c.loanType || "");
@@ -137,7 +143,8 @@ export default function CustomersPage() {
   const showingTo   = Math.min(currentPage * rowsPerPage, filtered.length);
   const hasActiveFilters  = !!statusFilter || !!projectFilter;
 
-  // FIX: Unwraps primitive keys and completely filters out objects that break key attributes
+  const totalProjectsCount = customers.reduce((sum, c) => sum + (c.totalProjects || 0), 0);
+
   const uniqueProjectNames = Array.from(
     new Set(
       customers.map((c) => {
@@ -154,82 +161,166 @@ export default function CustomersPage() {
   }
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-8 pb-10">
 
-      {/* Header */}
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-[#1a2035]">Customers</h1>
-          <p className="mt-0.5 text-sm text-[#8094ae]">{customers.length} total customers</p>
+      {/* ══ HERO BANNER ══ */}
+      <section className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-slate-900 via-indigo-950 to-blue-950 p-6 md:p-8 text-white shadow-xl border border-slate-800">
+        <div className="pointer-events-none absolute -right-16 -top-16 h-72 w-72 rounded-full bg-blue-500/15 blur-3xl" />
+        <div className="pointer-events-none absolute -bottom-16 left-1/3 h-64 w-64 rounded-full bg-indigo-500/15 blur-3xl" />
+
+        <div className="relative z-10 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <div className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1 text-xs font-semibold backdrop-blur-md border border-white/15 text-blue-200 mb-2">
+              <Users className="h-3.5 w-3.5 text-blue-300" />
+              Customer Accounts
+              <span className="opacity-40">•</span>
+              {customers.length} Accounts Registered
+            </div>
+            <h1 className="text-2xl font-extrabold tracking-tight text-white md:text-3xl">
+              Customer Directory
+            </h1>
+            <p className="mt-1 text-sm text-slate-300">
+              Overview of converted client accounts, active projects, and contract history.
+            </p>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="relative">
+              <button
+                onClick={() => setShowExportMenu((p) => !p)}
+                className="inline-flex items-center gap-2 rounded-xl bg-white/10 px-4 py-2.5 text-xs font-bold text-white backdrop-blur-md border border-white/15 transition hover:bg-white/20 active:scale-95"
+              >
+                <Download className="h-3.5 w-3.5" />
+                Export
+                <ChevronDown className="h-3.5 w-3.5 text-slate-300" />
+              </button>
+              {showExportMenu && (
+                <>
+                  <div className="fixed inset-0 z-10" onClick={() => setShowExportMenu(false)} />
+                  <div className="absolute right-0 z-20 mt-2 w-48 overflow-hidden rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 py-1.5 shadow-xl">
+                    <p className="px-4 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                      {filtered.length} Customers
+                    </p>
+                    <button
+                      onClick={() => { exportCSV(filtered); setShowExportMenu(false); }}
+                      className="flex w-full items-center gap-2.5 px-4 py-2 text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800"
+                    >
+                      <FileSpreadsheet className="h-4 w-4 text-blue-500" /> Export as CSV
+                    </button>
+                    <button
+                      onClick={() => { exportXLSX(filtered); setShowExportMenu(false); }}
+                      className="flex w-full items-center gap-2.5 px-4 py-2 text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800"
+                    >
+                      <FileSpreadsheet className="h-4 w-4 text-emerald-600" /> Export as Excel
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
         </div>
+      </section>
 
-        <div className="relative shrink-0">
-          <button
-            onClick={() => setShowExportMenu((p) => !p)}
-            className="flex items-center gap-1.5 rounded-lg border border-[#e5e9f2] bg-white px-4 py-2 text-sm font-medium text-gray-600 shadow-sm hover:bg-[#f5f6fa]"
+      {/* ══ TOP METRIC KPI CARDS ══ */}
+      <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        {[
+          {
+            label: "Total Accounts",
+            value: customers.length,
+            sub: "Converted Client Accounts",
+            icon: Users,
+            color: "from-blue-600 to-indigo-600",
+          },
+          {
+            label: "Total Client Projects",
+            value: totalProjectsCount,
+            sub: "Associated Delivery Projects",
+            icon: FolderKanban,
+            color: "from-emerald-600 to-teal-600",
+          },
+          {
+            label: "Active Relationships",
+            value: customers.length,
+            sub: "Registered Accounts in System",
+            icon: UserCheck,
+            color: "from-indigo-600 to-purple-600",
+          },
+        ].map(({ label, value, sub, icon: Icon, color }) => (
+          <div
+            key={label}
+            className="group relative overflow-hidden rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-xl hover:border-blue-300 dark:border-slate-800 dark:bg-slate-900"
           >
-            <Download className="h-4 w-4" />Export
-            <ChevronDown className="h-3.5 w-3.5 text-[#8094ae]" />
-          </button>
-          {showExportMenu && (
-            <>
-              <div className="fixed inset-0 z-10" onClick={() => setShowExportMenu(false)} />
-              <div className="absolute right-0 z-20 mt-1 w-44 overflow-hidden rounded-xl border border-[#e5e9f2] bg-white py-1 shadow-lg">
-                <p className="px-4 pb-1 pt-2 text-[10px] font-semibold uppercase tracking-wider text-[#8094ae]">
-                  {filtered.length} customers
-                </p>
-                <button
-                  onClick={() => { exportCSV(filtered); setShowExportMenu(false); }}
-                  className="flex w-full items-center gap-2.5 px-4 py-2 text-sm text-gray-700 hover:bg-[#f5f6fa]"
-                >
-                  <FileSpreadsheet className="h-3.5 w-3.5 text-blue-500" />Export as CSV
-                </button>
-                <button
-                  onClick={() => { exportXLSX(filtered); setShowExportMenu(false); }}
-                  className="flex w-full items-center gap-2.5 px-4 py-2 text-sm text-gray-700 hover:bg-[#f5f6fa]"
-                >
-                  <FileSpreadsheet className="h-3.5 w-3.5 text-green-600" />Export as Excel
-                </button>
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                {label}
+              </span>
+              <div
+                className={`flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br ${color} text-white shadow-md shadow-slate-300/50 dark:shadow-none transition group-hover:scale-110`}
+              >
+                <Icon className="h-5 w-5" />
               </div>
-            </>
-          )}
-        </div>
-      </div>
+            </div>
 
-      {/* Card */}
-      <div className="overflow-hidden rounded-xl border border-[#e5e9f2] bg-white shadow-sm">
+            <div className="mt-3">
+              <p className="text-2xl font-black text-slate-900 dark:text-white tracking-tight">
+                {value}
+              </p>
+              <p className="mt-1 text-xs font-medium text-slate-500 dark:text-slate-400">{sub}</p>
+            </div>
+
+            <div className="absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r from-transparent via-blue-600/30 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+          </div>
+        ))}
+      </section>
+
+      {/* ══ CUSTOMERS DATA TABLE CONTAINER ══ */}
+      <div className="overflow-hidden rounded-3xl border border-slate-200/80 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
 
         {/* Filter bar */}
-        <div className="flex items-center justify-between border-b border-[#e5e9f2] px-4 py-3">
-          <p className="text-sm text-[#8094ae]">
-            Showing <span className="font-medium text-[#1a2035]">{filtered.length}</span> customers
+        <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 p-5">
+          <p className="text-xs font-bold text-slate-500 dark:text-slate-400">
+            Showing <span className="font-extrabold text-slate-900 dark:text-white">{filtered.length}</span> customers
           </p>
-          <div className="flex items-center gap-1">
-            {showSearch && (
-              <div className="relative mr-1">
-                <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[#8094ae]" />
-                <input type="text" autoFocus placeholder="Search customers…" value={search}
-                  onChange={(e) => { setSearch(e.target.value); setCurrentPage(1); }}
-                  className="h-9 w-44 rounded-lg border border-[#e5e9f2] bg-[#f5f6fa] pl-8 pr-3 text-sm text-gray-700 placeholder:text-[#8094ae] focus:border-[#0971fe] focus:bg-white focus:outline-none"
-                />
-              </div>
-            )}
-            <button onClick={() => setShowSearch((p) => !p)} className={`rounded-lg p-2 hover:bg-[#f5f6fa] ${showSearch ? "bg-[#f5f6fa] text-gray-700" : "text-[#8094ae]"}`}>
-              <Search className="h-4 w-4" />
-            </button>
+          <div className="flex items-center gap-2">
             <div className="relative">
-              <button onClick={() => setShowFilters((p) => !p)} className={`rounded-lg p-2 hover:bg-[#f5f6fa] ${showFilters ? "bg-[#f5f6fa] text-gray-700" : "text-[#8094ae]"}`}>
-                <SlidersHorizontal className="h-4 w-4" />
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+              <input
+                type="text"
+                placeholder="Search customers..."
+                value={search}
+                onChange={(e) => { setSearch(e.target.value); setCurrentPage(1); }}
+                className="h-10 w-64 rounded-xl border border-slate-200/80 bg-slate-50 pl-9 pr-4 text-xs font-medium text-slate-900 dark:text-white dark:border-slate-800 dark:bg-slate-900 placeholder:text-slate-400 focus:border-blue-600 focus:bg-white focus:outline-none"
+              />
+              {search && (
+                <button
+                  onClick={() => setSearch("")}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              )}
+            </div>
+
+            <div className="relative">
+              <button
+                onClick={() => setShowFilters((p) => !p)}
+                className={`flex items-center gap-1.5 rounded-xl border px-3.5 py-2 text-xs font-bold transition ${
+                  hasActiveFilters
+                    ? "border-blue-500 bg-blue-50 text-blue-600 dark:bg-blue-950/50"
+                    : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-400"
+                }`}
+              >
+                <SlidersHorizontal className="h-3.5 w-3.5" />
+                Filter
               </button>
-              {hasActiveFilters && <span className="pointer-events-none absolute right-1 top-1 h-2 w-2 rounded-full bg-[#0971fe]" />}
               {showFilters && (
                 <>
                   <div className="fixed inset-0 z-10" onClick={() => setShowFilters(false)} />
-                  <div className="absolute right-0 z-20 mt-1 w-56 space-y-3 rounded-xl border border-[#e5e9f2] bg-white p-3 shadow-lg">
+                  <div className="absolute right-0 z-20 mt-2 w-60 space-y-3 rounded-2xl border border-slate-200/80 bg-white p-4 shadow-xl dark:border-slate-800 dark:bg-slate-900">
                     <div>
-                      <label className="mb-1 block text-xs font-medium text-gray-600">Status</label>
+                      <label className="mb-1 block text-xs font-bold text-slate-700 dark:text-slate-300">Status</label>
                       <select value={statusFilter} onChange={(e) => { setStatusFilter(e.target.value); setCurrentPage(1); }}
-                        className="h-8 w-full rounded-lg border border-[#e5e9f2] px-2 text-sm text-gray-700 focus:border-[#0971fe] focus:outline-none">
+                        className="h-9 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 text-xs font-medium text-slate-900 dark:border-slate-800 dark:bg-slate-900 dark:text-white focus:border-blue-600 focus:outline-none">
                         <option value="">All Statuses</option>
                         <option value="Converted">Converted</option>
                         <option value="Pending">Pending</option>
@@ -239,16 +330,16 @@ export default function CustomersPage() {
                       </select>
                     </div>
                     <div>
-                      <label className="mb-1 block text-xs font-medium text-gray-600">Project Name</label>
+                      <label className="mb-1 block text-xs font-bold text-slate-700 dark:text-slate-300">Project Type</label>
                       <select value={projectFilter} onChange={(e) => { setProjectFilter(e.target.value); setCurrentPage(1); }}
-                        className="h-8 w-full rounded-lg border border-[#e5e9f2] px-2 text-sm text-gray-700 focus:border-[#0971fe] focus:outline-none">
+                        className="h-9 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 text-xs font-medium text-slate-900 dark:border-slate-800 dark:bg-slate-900 dark:text-white focus:border-blue-600 focus:outline-none">
                         <option value="">All Projects</option>
                         {uniqueProjectNames.map((t) => <option key={t} value={t}>{t}</option>)}
                       </select>
                     </div>
                     {hasActiveFilters && (
                       <button onClick={() => { setStatusFilter(""); setProjectFilter(""); setCurrentPage(1); }}
-                        className="w-full rounded-lg border border-[#e5e9f2] py-1 text-xs text-gray-500 hover:bg-[#f5f6fa]">
+                        className="w-full rounded-xl border border-slate-200 py-1.5 text-xs font-bold text-slate-600 hover:bg-slate-50 dark:border-slate-800 dark:text-slate-400">
                         Clear filters
                       </button>
                     )}
@@ -263,29 +354,31 @@ export default function CustomersPage() {
           <ListSkeleton rows={6} />
         ) : loadError ? (
           <div className="py-16 text-center">
-            <p className="mb-2 text-sm font-medium text-red-600">{loadError}</p>
-            <button onClick={load} className="rounded-lg border border-[#e5e9f2] px-4 py-2 text-sm text-gray-600 hover:bg-[#f5f6fa]">Retry</button>
+            <p className="mb-2 text-sm font-semibold text-rose-600">{loadError}</p>
+            <button onClick={load} className="rounded-xl border border-slate-200 px-4 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50">Retry</button>
           </div>
         ) : customers.length === 0 ? (
           <div className="py-16 text-center">
-            <Users className="mx-auto mb-4 h-12 w-12 text-[#8094ae]" />
-            <h3 className="mb-1 text-base font-semibold text-[#1a2035]">No customers yet</h3>
-            <p className="text-sm text-[#8094ae]">Converted leads will appear here</p>
+            <Users className="mx-auto mb-4 h-12 w-12 text-slate-300" />
+            <h3 className="mb-1 text-base font-extrabold text-slate-900 dark:text-white">No customers yet</h3>
+            <p className="text-xs text-slate-500">Converted leads will appear here automatically.</p>
           </div>
         ) : (
           <>
             <div className="overflow-x-auto">
-              <table className="w-full text-sm">
+              <table className="w-full text-left text-xs">
                 <thead>
-                  <tr className="bg-[#f5f6fa]">
-                    {["#","Name","Total Projects","Project Pipeline",""].map((h, hIdx) => (
-                      <th key={`th-${hIdx}`} className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-[#8094ae]">{h}</th>
-                    ))}
+                  <tr className="border-b border-slate-200/80 bg-slate-50/50 text-slate-500 dark:border-slate-800 dark:bg-slate-900/50 uppercase tracking-wider font-extrabold">
+                    <th className="py-3.5 px-4">#</th>
+                    <th className="py-3.5 px-4">Name & Contact</th>
+                    <th className="py-3.5 px-4 text-center">Total Projects</th>
+                    <th className="py-3.5 px-4">Project Pipeline</th>
+                    <th className="py-3.5 px-4 text-right">Actions</th>
                   </tr>
                 </thead>
-                <tbody>
+                <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                   {paginated.length === 0 ? (
-                    <tr><td colSpan={5} className="py-14 text-center text-sm text-[#8094ae]">No customers found.</td></tr>
+                    <tr><td colSpan={5} className="py-14 text-center text-xs font-semibold text-slate-400">No customers found matching filter criteria.</td></tr>
                   ) : (
                     paginated.map((c, idx) => {
                       const isOpen = openActionId === c.id;
@@ -294,73 +387,72 @@ export default function CustomersPage() {
                         <tr
                           key={c.id || `row-${idx}`}
                           onClick={(e) => handleRowClick(e, c.id)}
-                          className="cursor-pointer border-b border-[#e5e9f2] transition-colors hover:bg-[#f9fafc]"
+                          className="cursor-pointer transition hover:bg-slate-50/80 dark:hover:bg-slate-800/50"
                         >
-                          <td className="px-4 py-3 text-sm font-medium text-[#0971fe]">{rowNum}</td>
-                          <td className="px-4 py-3">
+                          <td className="py-3.5 px-4 font-black text-blue-600 dark:text-blue-400">{rowNum}</td>
+                          <td className="py-3.5 px-4">
                             <div className="flex items-center gap-3">
-                              <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-xs font-bold text-white ${avatarBg(c.fullName || "")}`}>
+                              <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-xs font-bold text-white shadow-sm ${avatarBg(c.fullName || "")}`}>
                                 {initials(c.fullName || "")}
                               </div>
                               <div className="min-w-0">
-                                <p className="truncate font-medium text-gray-800">{c.fullName}</p>
-                                <p className="truncate text-xs text-[#8094ae]">{c.phone}</p>
-                            
+                                <p className="font-extrabold text-slate-900 dark:text-white text-sm truncate">{c.fullName}</p>
+                                <p className="text-[11px] text-slate-400 font-medium truncate">{c.phone || c.email || "—"}</p>
                               </div>
                             </div>
                           </td>
-                          <td className="px-4 py-3">
-                            <span className="inline-flex items-center justify-center rounded-full bg-[#f0f6ff] px-3 py-1 text-sm font-semibold text-[#0971fe]">
-                              {c.totalProjects ?? 0}
+                          <td className="py-3.5 px-4 text-center">
+                            <span className="inline-flex items-center justify-center rounded-full bg-blue-50 dark:bg-blue-950/60 px-3 py-1 text-xs font-extrabold text-blue-600 dark:text-blue-400 border border-blue-200/60 dark:border-blue-800/40">
+                              {c.totalProjects ?? 0} Projects
                             </span>
                           </td>
-                          <td className="px-4 py-3">
+                          <td className="py-3.5 px-4">
                             {(() => {
                               const s = c.pipeline ?? { pending: 0, converted: 0, rejected: 0 };
                               const total = s.pending + s.converted + s.rejected;
-                              if (total === 0) return <span className="text-xs text-gray-400">No projects</span>;
+                              if (total === 0) return <span className="text-xs text-slate-400 font-medium">No projects</span>;
                               return (
                                 <div className="flex items-center gap-1.5">
                                   {s.pending > 0 && (
-                                    <span className="inline-flex items-center gap-1 rounded-full bg-yellow-50 border border-yellow-200 px-2 py-0.5 text-[11px] font-semibold text-yellow-700">
-                                      <span className="h-1.5 w-1.5 rounded-full bg-yellow-400" />{s.pending} Pending
+                                    <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 border border-amber-200 px-2 py-0.5 text-[11px] font-bold text-amber-700 dark:bg-amber-950/40 dark:border-amber-800 dark:text-amber-300">
+                                      <span className="h-1.5 w-1.5 rounded-full bg-amber-400" />{s.pending} Pending
                                     </span>
                                   )}
                                   {s.converted > 0 && (
-                                    <span className="inline-flex items-center gap-1 rounded-full bg-purple-50 border border-purple-200 px-2 py-0.5 text-[11px] font-semibold text-purple-700">
-                                      <span className="h-1.5 w-1.5 rounded-full bg-purple-400" />{s.converted} Converted
+                                    <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 border border-emerald-200 px-2 py-0.5 text-[11px] font-bold text-emerald-700 dark:bg-emerald-950/40 dark:border-emerald-800 dark:text-emerald-300">
+                                      <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />{s.converted} Active
                                     </span>
                                   )}
                                   {s.rejected > 0 && (
-                                    <span className="inline-flex items-center gap-1 rounded-full bg-red-50 border border-red-200 px-2 py-0.5 text-[11px] font-semibold text-red-600">
-                                      <span className="h-1.5 w-1.5 rounded-full bg-red-400" />{s.rejected} Rejected
+                                    <span className="inline-flex items-center gap-1 rounded-full bg-rose-50 border border-rose-200 px-2 py-0.5 text-[11px] font-bold text-rose-700 dark:bg-rose-950/40 dark:border-rose-800 dark:text-rose-300">
+                                      <span className="h-1.5 w-1.5 rounded-full bg-rose-400" />{s.rejected} Cancelled
                                     </span>
                                   )}
                                 </div>
                               );
                             })()}
                           </td>
-                          <td className="relative px-3 py-3">
-                            <button onClick={(e) => { e.stopPropagation(); setOpenActionId(isOpen ? null : c.id); }} className="rounded-lg p-1.5 text-[#8094ae] hover:bg-[#f5f6fa]">
+                          <td className="relative py-3.5 px-4 text-right">
+                            <button onClick={(e) => { e.stopPropagation(); setOpenActionId(isOpen ? null : c.id); }} className="rounded-xl p-1.5 text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800">
                               <MoreHorizontal className="h-4 w-4" />
                             </button>
                             {isOpen && (
                               <>
                                 <div className="fixed inset-0 z-10" onClick={() => setOpenActionId(null)} />
-                                <div className="absolute right-10 top-1/2 z-20 w-36 -translate-y-1/2 overflow-hidden rounded-xl border border-[#e5e9f2] bg-white py-1 shadow-lg">
+                                <div className="absolute right-10 top-1/2 z-20 w-36 -translate-y-1/2 overflow-hidden rounded-2xl border border-slate-200/80 bg-white py-1.5 shadow-xl dark:border-slate-800 dark:bg-slate-900">
                                   <Link
                                     href={`/customers/${c.id}`}
                                     onClick={() => setOpenActionId(null)}
-                                    className="flex w-full items-center gap-2.5 px-4 py-2 text-sm text-gray-700 hover:bg-[#f5f6fa]"
+                                    className="flex w-full items-center gap-2.5 px-4 py-2 text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800"
                                   >
-                                    <Eye className="h-3.5 w-3.5 text-[#8094ae]" />View
+                                    <Eye className="h-3.5 w-3.5 text-blue-500" />View Profile
                                   </Link>
                                   <Link
                                     href={`/customers/${c.id}/edit`}
                                     onClick={() => setOpenActionId(null)}
-                                    className="flex w-full items-center gap-2.5 px-4 py-2 text-sm text-gray-700 hover:bg-[#f5f6fa]"
+                                    className="flex w-full items-center gap-2.5 px-4 py-2 text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800"
                                   >
-                                    <Pencil className="h-3.5 w-3.5 text-[#8094ae]" />Edit
+                                    <Pencil className="h-3.5 w-3.5 text-slate-400" />Edit Details
                                   </Link>
                                 </div>
                               </>
@@ -375,29 +467,29 @@ export default function CustomersPage() {
             </div>
 
             {/* Pagination */}
-            <div className="flex flex-col gap-3 border-t border-[#e5e9f2] px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
-              <div className="flex items-center gap-3 text-sm text-[#8094ae]">
+            <div className="flex flex-col gap-3 border-t border-slate-100 dark:border-slate-800 px-6 py-4 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex items-center gap-3 text-xs text-slate-500 font-semibold">
                 <span>
-                  Showing <span className="font-semibold text-[#1a2035]">{showingFrom}–{showingTo}</span> of{" "}
-                  <span className="font-semibold text-[#1a2035]">{filtered.length}</span> customers
+                  Showing <span className="font-extrabold text-slate-900 dark:text-white">{showingFrom}–{showingTo}</span> of{" "}
+                  <span className="font-extrabold text-slate-900 dark:text-white">{filtered.length}</span> customers
                 </span>
                 <div className="flex items-center gap-1.5">
-                  <span className="text-xs">Rows:</span>
+                  <span>Rows:</span>
                   <select value={rowsPerPage}
                     onChange={(e) => { setRowsPerPage(Number(e.target.value) as 10 | 25 | 50); setCurrentPage(1); }}
-                    className="h-7 rounded-lg border border-[#e5e9f2] px-2 text-xs text-gray-700 focus:border-[#0971fe] focus:outline-none">
+                    className="h-8 rounded-xl border border-slate-200 bg-slate-50 px-2 text-xs font-bold text-slate-900 dark:border-slate-800 dark:bg-slate-900 dark:text-white focus:outline-none">
                     {PAGE_SIZE_OPTIONS.map((n) => <option key={n} value={n}>{n}</option>)}
                   </select>
                 </div>
               </div>
-              <div className="flex items-center gap-1">
-                <button onClick={() => setCurrentPage((p) => Math.max(1, p - 1))} disabled={currentPage === 1} className="flex h-8 items-center gap-1 rounded-lg border border-[#e5e9f2] px-3 text-sm text-gray-600 hover:bg-[#f5f6fa] disabled:opacity-40">
+              <div className="flex items-center gap-1.5">
+                <button onClick={() => setCurrentPage((p) => Math.max(1, p - 1))} disabled={currentPage === 1} className="flex h-8 items-center gap-1 rounded-xl border border-slate-200 px-3 text-xs font-bold text-slate-700 hover:bg-slate-50 dark:border-slate-800 dark:text-slate-300 disabled:opacity-40">
                   <ChevronLeft className="h-3.5 w-3.5" />Prev
                 </button>
                 {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
-                  <button key={`page-${p}`} onClick={() => setCurrentPage(p)} className={`h-8 min-w-[32px] rounded-lg border px-2.5 text-sm font-medium ${p === currentPage ? "border-[#0971fe] bg-[#0971fe] text-white" : "border-[#e5e9f2] text-gray-600 hover:bg-[#f5f6fa]"}`}>{p}</button>
+                  <button key={`page-${p}`} onClick={() => setCurrentPage(p)} className={`h-8 min-w-[32px] rounded-xl border px-2.5 text-xs font-bold ${p === currentPage ? "border-blue-600 bg-blue-600 text-white" : "border-slate-200 text-slate-700 hover:bg-slate-50 dark:border-slate-800 dark:text-slate-300"}`}>{p}</button>
                 ))}
-                <button onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages} className="flex h-8 items-center gap-1 rounded-lg border border-[#e5e9f2] px-3 text-sm text-gray-600 hover:bg-[#f5f6fa] disabled:opacity-40">
+                <button onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages} className="flex h-8 items-center gap-1 rounded-xl border border-slate-200 px-3 text-xs font-bold text-slate-700 hover:bg-slate-50 dark:border-slate-800 dark:text-slate-300 disabled:opacity-40">
                   Next<ChevronRight className="h-3.5 w-3.5" />
                 </button>
               </div>

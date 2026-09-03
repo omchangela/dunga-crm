@@ -1091,6 +1091,65 @@ export default function LeadsPage() {
           </div>
         </section>
 
+        {/* ══ TOP METRIC KPI CARDS ══ */}
+        <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          {[
+            {
+              label: "Active Inquiries",
+              value: totalLeads,
+              sub: "Total Unconverted Leads",
+              icon: UserPlus,
+              color: "from-blue-600 to-indigo-600",
+            },
+            {
+              label: "Follow-up Required",
+              value: localTabCounts.followup,
+              sub: `${localTabCounts.followup} Leads Scheduled`,
+              icon: Bell,
+              color: "from-amber-600 to-orange-600",
+            },
+            {
+              label: "Assigned Execs",
+              value: leads.filter((l) => l.employee).length,
+              sub: "Assigned to Sales Team",
+              icon: UserCheck,
+              color: "from-purple-600 to-violet-600",
+            },
+            {
+              label: "Converted Clients",
+              value: leads.filter((l) => l.status === "CONVERTED").length,
+              sub: "Successfully Converted",
+              icon: CheckCircle2,
+              color: "from-emerald-600 to-teal-600",
+            },
+          ].map(({ label, value, sub, icon: Icon, color }) => (
+            <div
+              key={label}
+              className="group relative overflow-hidden rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-xl hover:border-blue-300 dark:border-slate-800 dark:bg-slate-900"
+            >
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                  {label}
+                </span>
+                <div
+                  className={`flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br ${color} text-white shadow-md shadow-slate-300/50 dark:shadow-none transition group-hover:scale-110`}
+                >
+                  <Icon className="h-5 w-5" />
+                </div>
+              </div>
+
+              <div className="mt-3">
+                <p className="text-2xl font-black text-slate-900 dark:text-white tracking-tight">
+                  {value}
+                </p>
+                <p className="mt-1 text-xs font-medium text-slate-500 dark:text-slate-400">{sub}</p>
+              </div>
+
+              <div className="absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r from-transparent via-blue-600/30 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+            </div>
+          ))}
+        </section>
+
         {/* Banner Alert Messages */}
         {msg && (
           <div

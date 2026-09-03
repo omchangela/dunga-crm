@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, Info } from "lucide-react";
+import { ArrowLeft, Info, CheckCircle2 } from "lucide-react";
 import { employeesApi } from "@/lib/api";
 
 export default function NewEmployeePage() {
@@ -60,76 +60,90 @@ export default function NewEmployeePage() {
   function field(key: string, label: string, type = "text", placeholder = "") {
     return (
       <div className="space-y-1.5">
-        <label className="block text-xs font-medium text-gray-700">{label}</label>
+        <label className="block text-xs font-bold text-slate-700 dark:text-slate-300">{label}</label>
         <input type={type} value={(form as any)[key]} placeholder={placeholder}
           onChange={(e) => { setForm((p) => ({ ...p, [key]: e.target.value })); setErrors((p) => ({ ...p, [key]: "" })); }}
-          className="h-10 w-full rounded-lg border border-[#e5e9f2] px-3 text-sm text-gray-700 focus:border-[#0971fe] focus:outline-none" />
-        {errors[key] && <p className="text-xs text-red-600">{errors[key]}</p>}
+          className="h-11 w-full rounded-2xl border border-slate-200/80 bg-slate-50 px-4 text-xs font-semibold text-slate-900 dark:border-slate-800 dark:bg-slate-900 dark:text-white focus:border-blue-600 focus:outline-none" />
+        {errors[key] && <p className="text-xs font-bold text-rose-600">{errors[key]}</p>}
       </div>
     );
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8 pb-10">
+
+      {/* ══ HERO BANNER ══ */}
+      <section className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-slate-900 via-indigo-950 to-blue-950 p-6 md:p-8 text-white shadow-xl border border-slate-800">
+        <div className="pointer-events-none absolute -right-16 -top-16 h-72 w-72 rounded-full bg-blue-500/15 blur-3xl" />
+        <div className="pointer-events-none absolute -bottom-16 left-1/3 h-64 w-64 rounded-full bg-indigo-500/15 blur-3xl" />
+
+        <div className="relative z-10 flex flex-col gap-5">
+          <Link
+            href="/employees"
+            className="inline-flex items-center gap-1.5 self-start rounded-full bg-white/10 px-3.5 py-1.5 text-xs font-semibold text-blue-200 backdrop-blur-md border border-white/15 transition hover:bg-white/20"
+          >
+            <ArrowLeft className="h-3.5 w-3.5" />
+            Back to Sales Team
+          </Link>
+
+          <div>
+            <h1 className="text-2xl font-extrabold tracking-tight text-white md:text-3xl">
+              Register New Employee
+            </h1>
+            <p className="mt-1 text-sm text-slate-300">
+              Add a sales executive or manager to handle pipeline leads and monthly targets.
+            </p>
+          </div>
+        </div>
+      </section>
+
       {toast && (
-        <div className="mx-auto max-w-2xl rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-sm font-medium text-green-700">
+        <div className="mx-auto max-w-2xl flex items-center gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 px-5 py-3.5 text-xs font-bold text-emerald-800 dark:bg-emerald-950/40 dark:border-emerald-800 dark:text-emerald-300">
+          <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-600" />
           {toast}
         </div>
       )}
 
-      <div className="mx-auto flex max-w-2xl items-center gap-3">
-        <Link href="/employees" className="flex h-9 w-9 items-center justify-center rounded-lg border border-[#e5e9f2] bg-white text-[#8094ae] hover:bg-[#f5f6fa]">
-          <ArrowLeft className="h-4 w-4" />
-        </Link>
-        <div>
-          <h1 className="text-xl font-bold text-[#1a2035]">Add Employee</h1>
-          <p className="text-sm text-[#8094ae]">Register a new team member</p>
-        </div>
-      </div>
-
-      <div className="mx-auto max-w-2xl overflow-hidden rounded-2xl border border-[#e5e9f2] bg-white shadow-sm">
-        {/* Info banner */}
-        <div className="flex items-start gap-3 border-b border-[#e5e9f2] bg-blue-50/60 px-5 py-4">
-          <Info className="mt-0.5 h-4 w-4 shrink-0 text-[#0971fe]" />
-          <p className="text-xs text-[#1a2035]">
-            A random password will be generated and sent to the employee&apos;s email automatically.
+      {/* Form Container */}
+      <div className="max-w-2xl mx-auto overflow-hidden rounded-3xl border border-slate-200/80 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900 space-y-6">
+        <div className="flex items-center gap-3 rounded-2xl border border-blue-200/80 bg-blue-50/60 p-4 dark:border-blue-900/50 dark:bg-blue-950/20">
+          <Info className="h-4 w-4 text-blue-600 shrink-0" />
+          <p className="text-xs font-semibold text-slate-700 dark:text-slate-300">
+            A temporary password will be generated and dispatched to the employee's email address automatically.
           </p>
         </div>
 
-        <form onSubmit={handleSubmit} noValidate className="space-y-5 p-6">
+        <form onSubmit={handleSubmit} noValidate className="space-y-5">
           {field("name",  "Full Name *",  "text",  "e.g. Suresh Kumar")}
           <div className="grid gap-4 sm:grid-cols-2">
-            {field("email", "Email *",   "email", "employee@company.com")}
-            {field("phone", "Phone",     "tel",   "10-digit (optional)")}
+            {field("email", "Email Address *", "email", "employee@company.com")}
+            {field("phone", "Phone Number",     "tel",   "10-digit number")}
           </div>
 
           <div className="space-y-1.5">
-            <label className="block text-xs font-medium text-gray-700">Role *</label>
+            <label className="block text-xs font-bold text-slate-700 dark:text-slate-300">Sales Role *</label>
             <select value={form.role}
               onChange={(e) => { setForm((p) => ({ ...p, role: e.target.value })); setErrors((p) => ({ ...p, role: "" })); }}
-              className="h-10 w-full rounded-lg border border-[#e5e9f2] px-3 text-sm text-gray-700 focus:border-[#0971fe] focus:outline-none">
+              className="h-11 w-full rounded-2xl border border-slate-200/80 bg-slate-50 px-3 text-xs font-semibold text-slate-900 dark:border-slate-800 dark:bg-slate-900 dark:text-white focus:border-blue-600 focus:outline-none">
               <option value="">Select role</option>
               {roles.map((r) => <option key={r} value={r}>{r}</option>)}
             </select>
-            {errors.role && <p className="text-xs text-red-600">{errors.role}</p>}
+            {errors.role && <p className="text-xs font-bold text-rose-600">{errors.role}</p>}
           </div>
 
           <div className="space-y-1.5">
-            <label className="block text-xs font-medium text-gray-700">Monthly Target (₹)</label>
+            <label className="block text-xs font-bold text-slate-700 dark:text-slate-300">Initial Monthly Target (₹)</label>
             <input type="number" min="0" value={form.target} placeholder="e.g. 200000"
               onChange={(e) => { setForm((p) => ({ ...p, target: e.target.value })); setErrors((p) => ({ ...p, target: "" })); }}
-              className="h-10 w-full rounded-lg border border-[#e5e9f2] px-3 text-sm text-gray-700 focus:border-[#0971fe] focus:outline-none" />
-            <p className="text-xs text-[#8094ae]">Set initial target for current month</p>
-            {errors.target && <p className="text-xs text-red-600">{errors.target}</p>}
+              className="h-11 w-full rounded-2xl border border-slate-200/80 bg-slate-50 px-4 text-xs font-semibold text-slate-900 dark:border-slate-800 dark:bg-slate-900 dark:text-white focus:border-blue-600 focus:outline-none" />
+            {errors.target && <p className="text-xs font-bold text-rose-600">{errors.target}</p>}
           </div>
 
-          <div className="flex items-center gap-3 pt-2">
-            <button type="submit" disabled={saving}
-              className="rounded-lg bg-[#0971fe] px-5 py-2 text-sm font-medium text-white hover:bg-[#0558d4] disabled:opacity-50">
-              {saving ? "Creating…" : "Create Employee"}
+          <div className="flex items-center gap-3 pt-4 border-t border-slate-100 dark:border-slate-800">
+            <button type="submit" disabled={saving} className="rounded-2xl bg-blue-600 px-6 py-3 text-xs font-bold text-white shadow-md hover:bg-blue-700 disabled:opacity-50">
+              {saving ? "Creating..." : "Create Employee Record"}
             </button>
-            <Link href="/employees"
-              className="rounded-lg border border-[#e5e9f2] px-4 py-2 text-sm text-gray-500 hover:bg-[#f5f6fa]">
+            <Link href="/employees" className="rounded-2xl border border-slate-200 bg-white px-5 py-3 text-xs font-bold text-slate-600 hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-400">
               Cancel
             </Link>
           </div>
