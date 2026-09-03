@@ -157,7 +157,7 @@ export default function DashboardPage() {
 
     try {
       const [leadsRes, custRes, projRes, devs, remRes] = await Promise.all([
-        fetchLeads({ status: "ALL", limit: "500" }),
+        fetchLeads({ status: "ALL", limit: "50000" }),
         fetchCustomers({ limit: "500" }),
         fetchAllProjects({
           status: "CONVERTED,ACTIVE,COMPLETED,ON_HOLD,CANCELLED",
