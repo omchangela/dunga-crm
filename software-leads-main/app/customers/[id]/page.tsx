@@ -534,9 +534,12 @@ export default function CustomerDetailPage() {
 
         {/* Add Project Form */}
         {showAddProj && (
-          <div className="rounded-3xl border border-blue-200 bg-blue-50/40 p-6 shadow-sm dark:border-blue-900/50 dark:bg-blue-950/20 space-y-4">
+          <div className="rounded-3xl border border-blue-200 bg-blue-50/40 p-6 shadow-sm dark:border-blue-900/50 dark:bg-blue-950/20 space-y-5">
             <div className="flex items-center justify-between border-b border-blue-100 dark:border-blue-900/40 pb-3">
-              <p className="text-sm font-extrabold text-slate-900 dark:text-white">Add New Project Record</p>
+              <div>
+                <p className="text-sm font-extrabold text-slate-900 dark:text-white">Add New Project Record</p>
+                <p className="text-xs text-slate-500">Capture project scope, estimation, payment terms, and timeline for {customer.fullName}.</p>
+              </div>
               <button
                 type="button"
                 onClick={() => { setShowAddProj(false); setProjForm(emptyProjForm); setProjError(""); }}
@@ -546,15 +549,34 @@ export default function CustomerDetailPage() {
               </button>
             </div>
 
-            <div className="space-y-3">
-              <div>
-                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Project Name *</label>
-                <input
-                  placeholder="e.g. ERP Platform, E-Commerce App"
-                  value={projForm.projectName}
-                  onChange={(e) => updateForm({ projectName: e.target.value })}
-                  className="h-10 w-full rounded-xl border border-slate-200/80 bg-white px-3 text-xs font-semibold text-slate-900 dark:border-slate-800 dark:bg-slate-900 dark:text-white focus:border-blue-600 focus:outline-none"
-                />
+            <div className="space-y-4">
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Project Name *</label>
+                  <input
+                    placeholder="e.g. ERP Platform, E-Commerce App"
+                    value={projForm.projectName}
+                    onChange={(e) => updateForm({ projectName: e.target.value })}
+                    className="h-10 w-full rounded-xl border border-slate-200/80 bg-white px-3 text-xs font-semibold text-slate-900 dark:border-slate-800 dark:bg-slate-900 dark:text-white focus:border-blue-600 focus:outline-none"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Type of Project</label>
+                  <select
+                    value={projForm.projectType}
+                    onChange={(e) => updateForm({ projectType: e.target.value })}
+                    className="h-10 w-full rounded-xl border border-slate-200/80 bg-white px-3 text-xs font-semibold text-slate-900 dark:border-slate-800 dark:bg-slate-900 dark:text-white focus:border-blue-600 focus:outline-none"
+                  >
+                    <option value="">Select Domain Category...</option>
+                    <option value="Web Development">Web Development</option>
+                    <option value="App Development">App Development</option>
+                    <option value="App + Web Development">App + Web Development</option>
+                    <option value="Digital Marketing">Digital Marketing</option>
+                    <option value="Design Services">Design Services</option>
+                    <option value="Others">Others</option>
+                  </select>
+                </div>
               </div>
 
               <div>
@@ -567,15 +589,256 @@ export default function CustomerDetailPage() {
                   className="w-full resize-none rounded-xl border border-slate-200/80 bg-white px-3 py-2 text-xs font-medium text-slate-900 dark:border-slate-800 dark:bg-slate-900 dark:text-white focus:border-blue-600 focus:outline-none"
                 />
               </div>
+
+              {/* Status Selector */}
+              <div>
+                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">Initial Pipeline Status</label>
+                <div className="grid grid-cols-3 gap-2">
+                  {["Pending", "Converted", "Rejected"].map((st) => (
+                    <button
+                      key={st}
+                      type="button"
+                      onClick={() => updateForm({ status: st })}
+                      className={`py-2 px-3 text-xs font-bold rounded-xl border transition ${
+                        projForm.status === st
+                          ? "bg-blue-600 border-blue-600 text-white shadow-sm"
+                          : "bg-white border-slate-200/80 text-slate-700 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300 hover:bg-slate-50"
+                      }`}
+                    >
+                      {st}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Project Overview — Web / App / Admin description rows */}
+              <div className="space-y-3 border-t border-slate-200/60 dark:border-slate-800 pt-4">
+                <label className="text-xs font-extrabold uppercase text-slate-500 tracking-wider">Project Overview Features</label>
+
+                {([
+                  { key: "overviewWeb"   as OverviewKey, label: "Web Features",   dot: "bg-blue-400" },
+                  { key: "overviewApp"   as OverviewKey, label: "App Features",   dot: "bg-emerald-400" },
+                  { key: "overviewAdmin" as OverviewKey, label: "Admin Features", dot: "bg-purple-400" },
+                ]).map((cat) => (
+                  <div key={cat.key} className="rounded-2xl border border-slate-200/80 bg-white dark:border-slate-800 dark:bg-slate-900 p-3.5 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold text-slate-800 dark:text-slate-200 flex items-center gap-2">
+                        <span className={`h-2 w-2 rounded-full ${cat.dot}`} /> {cat.label}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => addOverviewItem(cat.key)}
+                        className="flex h-6 w-6 items-center justify-center rounded-full bg-blue-600 hover:bg-blue-700 text-white transition shadow-sm"
+                        title={`Add ${cat.label}`}
+                      >
+                        <Plus className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+
+                    {projForm[cat.key].length > 0 && (
+                      <div className="space-y-2">
+                        {projForm[cat.key].map((desc, index) => (
+                          <div key={`${cat.key}-${index}`} className="flex items-center gap-2">
+                            <Input
+                              placeholder={`${cat.label} detail ${index + 1}`}
+                              value={desc}
+                              onChange={(e) => updateOverviewItem(cat.key, index, e.target.value)}
+                              className="bg-slate-50 dark:bg-slate-800 text-xs font-medium flex-1 h-9 rounded-xl"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => removeOverviewItem(cat.key, index)}
+                              className="h-9 w-9 flex items-center justify-center text-slate-400 hover:text-rose-600 rounded-xl hover:bg-rose-50 dark:hover:bg-rose-950/40 shrink-0"
+                            >
+                              <X className="h-4 w-4" />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+
+              {/* Payment Breakdown */}
+              <div className="space-y-2.5 border-t border-slate-200/60 dark:border-slate-800 pt-4">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-extrabold uppercase text-slate-500 tracking-wider flex items-center gap-1.5">
+                    <Wallet className="h-3.5 w-3.5 text-emerald-500" /> Payment Components
+                  </label>
+                  <button
+                    type="button"
+                    onClick={addPayment}
+                    className="flex h-6 w-6 items-center justify-center rounded-full bg-blue-600 hover:bg-blue-700 text-white transition shadow-sm"
+                    title="Add payment component"
+                  >
+                    <Plus className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+
+                {projForm.payments.length > 0 && (
+                  <div className="space-y-2">
+                    {projForm.payments.map((row, index) => (
+                      <div key={`payment-${index}`} className="flex items-center gap-2">
+                        <Input
+                          placeholder="Description (e.g. Core App)"
+                          value={row.description}
+                          onChange={(e) => updatePayment(index, "description", e.target.value)}
+                          className="bg-white dark:bg-slate-900 text-xs font-semibold flex-1 h-9 rounded-xl"
+                        />
+                        <Input
+                          type="number"
+                          placeholder="Amount (₹)"
+                          value={row.amount}
+                          onChange={(e) => updatePayment(index, "amount", e.target.value)}
+                          className="bg-white dark:bg-slate-900 text-xs font-semibold flex-1 h-9 rounded-xl"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => removePayment(index)}
+                          className="h-9 w-9 flex items-center justify-center text-slate-400 hover:text-rose-600 rounded-xl hover:bg-rose-50 dark:hover:bg-rose-950/40 shrink-0"
+                        >
+                          <X className="h-4 w-4" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                <div className="flex items-center justify-between rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 px-4 py-2.5">
+                  <span className="text-xs font-bold text-emerald-700 dark:text-emerald-300">Base Project Cost</span>
+                  <span className="text-sm font-black text-emerald-800 dark:text-emerald-200">
+                    ₹{totalPayment.toLocaleString("en-IN")}
+                  </span>
+                </div>
+              </div>
+
+              {/* Project Timeline Breakdown */}
+              <div className="space-y-2.5 border-t border-slate-200/60 dark:border-slate-800 pt-4">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-extrabold uppercase text-slate-500 tracking-wider flex items-center gap-1.5">
+                    <Clock className="h-3.5 w-3.5 text-amber-500" /> Project Timeline Phases
+                  </label>
+                  <button
+                    type="button"
+                    onClick={addTimeline}
+                    className="flex h-6 w-6 items-center justify-center rounded-full bg-blue-600 hover:bg-blue-700 text-white transition shadow-sm"
+                    title="Add timeline phase"
+                  >
+                    <Plus className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+
+                {projForm.timelines.length > 0 && (
+                  <div className="space-y-2">
+                    {projForm.timelines.map((row, index) => (
+                      <div key={`timeline-${index}`} className="flex items-center gap-2">
+                        <Input
+                          placeholder="Phase description"
+                          value={row.description}
+                          onChange={(e) => updateTimeline(index, "description", e.target.value)}
+                          className="bg-white dark:bg-slate-900 text-xs font-semibold flex-1 h-9 rounded-xl"
+                        />
+                        <Input
+                          type="number"
+                          placeholder="Working days"
+                          value={row.workingDays}
+                          onChange={(e) => updateTimeline(index, "workingDays", e.target.value)}
+                          className="bg-white dark:bg-slate-900 text-xs font-semibold flex-1 h-9 rounded-xl"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => removeTimeline(index)}
+                          className="h-9 w-9 flex items-center justify-center text-slate-400 hover:text-rose-600 rounded-xl hover:bg-rose-50 dark:hover:bg-rose-950/40 shrink-0"
+                        >
+                          <X className="h-4 w-4" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                <div className="flex items-center justify-between rounded-2xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 px-4 py-2.5">
+                  <span className="text-xs font-bold text-amber-700 dark:text-amber-300">Total Working Days</span>
+                  <span className="text-sm font-black text-amber-800 dark:text-amber-200">
+                    {totalWorkingDays} {totalWorkingDays === 1 ? "day" : "days"}
+                  </span>
+                </div>
+              </div>
+
+              {/* Payment Scheduled Milestones */}
+              <div className="space-y-2.5 border-t border-slate-200/60 dark:border-slate-800 pt-4">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-extrabold uppercase text-slate-500 tracking-wider flex items-center gap-1.5">
+                    <CalendarDays className="h-3.5 w-3.5 text-indigo-500" /> Payment Scheduled Installments
+                  </label>
+                  <button
+                    type="button"
+                    onClick={addSchedule}
+                    className="flex h-6 w-6 items-center justify-center rounded-full bg-blue-600 hover:bg-blue-700 text-white transition shadow-sm"
+                    title="Add payment schedule"
+                  >
+                    <Plus className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+
+                {projForm.schedules.length > 0 && (
+                  <div className="space-y-2">
+                    {projForm.schedules.map((row, index) => (
+                      <div key={`schedule-${index}`} className="flex items-center gap-2">
+                        <Input
+                          placeholder="Milestone (e.g. 50% Advance)"
+                          value={row.description}
+                          onChange={(e) => updateSchedule(index, "description", e.target.value)}
+                          className="bg-white dark:bg-slate-900 text-xs font-semibold flex-1 h-9 rounded-xl"
+                        />
+                        <Input
+                          type="number"
+                          placeholder="Payment (₹)"
+                          value={row.payment}
+                          onChange={(e) => updateSchedule(index, "payment", e.target.value)}
+                          className="bg-white dark:bg-slate-900 text-xs font-semibold flex-1 h-9 rounded-xl"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => removeSchedule(index)}
+                          className="h-9 w-9 flex items-center justify-center text-slate-400 hover:text-rose-600 rounded-xl hover:bg-rose-50 dark:hover:bg-rose-950/40 shrink-0"
+                        >
+                          <X className="h-4 w-4" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
 
             {projError && <p className="text-xs font-bold text-rose-600">{projError}</p>}
+
+            {/* Live summary */}
+            <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-slate-200/80 bg-white p-3.5 dark:border-slate-800 dark:bg-slate-900">
+              <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 mr-1">Summary</span>
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 border border-emerald-200 dark:bg-emerald-950/40 dark:border-emerald-800 px-3 py-1 text-xs font-extrabold text-emerald-700 dark:text-emerald-300">
+                <Wallet className="h-3 w-3" /> ₹{totalPayment.toLocaleString("en-IN")}
+              </span>
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-blue-50 border border-blue-200 dark:bg-blue-950/40 dark:border-blue-800 px-3 py-1 text-xs font-extrabold text-blue-700 dark:text-blue-300">
+                <Layers className="h-3 w-3" />
+                {projForm.overviewWeb.filter((p) => p.trim()).length +
+                  projForm.overviewApp.filter((p) => p.trim()).length +
+                  projForm.overviewAdmin.filter((p) => p.trim()).length} features
+              </span>
+              {projForm.timelines.length > 0 && (
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-50 border border-amber-200 dark:bg-amber-950/40 dark:border-amber-800 px-3 py-1 text-xs font-extrabold text-amber-700 dark:text-amber-300">
+                  <Clock className="h-3 w-3" /> {projForm.timelines.length} timeline phase{projForm.timelines.length === 1 ? "" : "s"}
+                </span>
+              )}
+            </div>
 
             <div className="flex gap-2 pt-2">
               <Button type="button" size="sm" onClick={handleAddProject} className="rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs">
                 Save Project Record
               </Button>
-              <Button type="button" variant="ghost" size="sm" onClick={() => { setShowAddProj(false); setProjForm(emptyProjForm); setProjError(""); }} className="rounded-xl border border-slate-200 bg-white text-xs font-bold">
+              <Button type="button" variant="ghost" size="sm" onClick={() => { setShowAddProj(false); setProjForm(emptyProjForm); setProjError(""); }} className="rounded-xl border border-slate-200 bg-white text-xs font-bold dark:border-slate-800 dark:bg-slate-900">
                 Cancel
               </Button>
             </div>
@@ -594,6 +857,12 @@ export default function CustomerDetailPage() {
               const view = PROJECT_STATUS_VIEW[status] ?? PROJECT_STATUS_VIEW["Pending"];
               const pid = p.id || `proj-${index}`;
               const expanded = !!expandedProjects[pid];
+              const isEstimationStage = status === "Pending" || status === "Rejected";
+
+              const sec = (name: string) => ({
+                open: openProjSection[`${pid}:${name}`] ?? true,
+                onToggle: () => toggleProjSection(`${pid}:${name}`),
+              });
 
               return (
                 <div
@@ -633,18 +902,255 @@ export default function CustomerDetailPage() {
                         <p className="text-xs text-slate-600 dark:text-slate-300 font-medium">{p.description}</p>
                       )}
 
-                      {/* Documents link */}
-                      {p.estimationPdfUrl && (
-                        <div className="flex items-center justify-between rounded-xl bg-slate-50 dark:bg-slate-800/50 p-3 border border-slate-200/80 dark:border-slate-800">
-                          <span className="text-xs font-bold text-slate-700 dark:text-slate-300">Estimation Proposal PDF</span>
-                          <button
-                            onClick={() => viewProjectPdf("estimation", p.id)}
-                            className="inline-flex items-center gap-1.5 rounded-lg border border-blue-200 bg-blue-50 px-3 py-1 text-xs font-bold text-blue-600 hover:bg-blue-100 dark:bg-blue-950/40 dark:border-blue-800 dark:text-blue-300"
-                          >
-                            <ExternalLink className="h-3.5 w-3.5" />View PDF
-                          </button>
+                      {/* Project Overview */}
+                      {p.overview && (p.overview.web?.length || p.overview.app?.length || p.overview.admin?.length) ? (
+                        <ProjSection title="Project Overview" icon={<Layers className="h-3.5 w-3.5 text-blue-500" />} {...sec("overview")}>
+                          <div className="space-y-2">
+                            {([
+                              { items: p.overview.web,   label: "Web",   dot: "bg-blue-400" },
+                              { items: p.overview.app,   label: "App",   dot: "bg-emerald-400" },
+                              { items: p.overview.admin, label: "Admin", dot: "bg-purple-400" },
+                            ] as const).map((cat) =>
+                              cat.items && cat.items.length > 0 ? (
+                                <div key={cat.label} className="space-y-1">
+                                  <span className="text-[10px] font-bold uppercase tracking-wide text-slate-400 flex items-center gap-1.5">
+                                    <span className={`h-1.5 w-1.5 rounded-full ${cat.dot}`} /> {cat.label}
+                                  </span>
+                                  {cat.items.map((pt: string, ptIdx: number) => (
+                                    <div key={ptIdx} className="flex items-center gap-2 text-xs text-slate-700 dark:text-slate-300 pl-3">
+                                      <span className="h-1 w-1 rounded-full bg-slate-300 shrink-0" />
+                                      {pt}
+                                    </div>
+                                  ))}
+                                </div>
+                              ) : null
+                            )}
+                          </div>
+                        </ProjSection>
+                      ) : null}
+
+                      {/* Payments */}
+                      {p.payments && p.payments.length > 0 && (
+                        <ProjSection title="Payment Component Breakdown" icon={<Wallet className="h-3.5 w-3.5 text-emerald-500" />} count={p.payments.length} {...sec("payments")}>
+                          <div className="grid gap-2 sm:grid-cols-2">
+                            {p.payments.map((row: PaymentItem, i: number) => (
+                              <div key={i} className="rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 px-3 py-2 flex items-center justify-between gap-2">
+                                <span className="text-xs font-bold text-emerald-800 dark:text-emerald-200 truncate">{row.description || "—"}</span>
+                                <span className="text-xs font-extrabold text-emerald-700 dark:text-emerald-300 shrink-0">₹{Number(row.amount || 0).toLocaleString("en-IN")}</span>
+                              </div>
+                            ))}
+                          </div>
+                        </ProjSection>
+                      )}
+
+                      {/* Project Timeline */}
+                      {p.timelines && p.timelines.length > 0 && (
+                        <ProjSection title="Project Timeline Phases" icon={<Clock className="h-3.5 w-3.5 text-amber-500" />} count={p.timelines.length} {...sec("timeline")}>
+                          <div className="grid gap-2 sm:grid-cols-2">
+                            {p.timelines.map((row: TimelineItem, i: number) => (
+                              <div key={i} className="rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 px-3 py-2 flex items-center justify-between gap-2">
+                                <span className="text-xs font-bold text-amber-800 dark:text-amber-200 truncate">{row.description || "—"}</span>
+                                <span className="text-xs font-extrabold text-amber-700 dark:text-amber-300 shrink-0">{row.workingDays || 0} Working Days</span>
+                              </div>
+                            ))}
+                          </div>
+                        </ProjSection>
+                      )}
+
+                      {/* Payment Scheduled */}
+                      {p.schedules && p.schedules.length > 0 && (
+                        <ProjSection title="Payment Scheduled Installments" icon={<CalendarDays className="h-3.5 w-3.5 text-indigo-500" />} count={p.schedules.length} {...sec("schedule")}>
+                          <div className="grid gap-2 sm:grid-cols-2">
+                            {p.schedules.map((row: ScheduleItem, i: number) => (
+                              <div key={i} className="rounded-xl bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-800 px-3 py-2 flex items-center justify-between gap-2">
+                                <span className="text-xs font-bold text-indigo-800 dark:text-indigo-200 truncate">{row.description || "—"}</span>
+                                <span className="text-xs font-extrabold text-indigo-700 dark:text-indigo-300 shrink-0">₹{Number(row.payment || 0).toLocaleString("en-IN")}</span>
+                              </div>
+                            ))}
+                          </div>
+                        </ProjSection>
+                      )}
+
+                      {/* Assigned Engineering Team */}
+                      {p.developers && p.developers.length > 0 && (
+                        <ProjSection title="Assigned Engineering Team" icon={<Code2 className="h-3.5 w-3.5 text-blue-500" />} count={p.developers.length} {...sec("team")}>
+                          <div className="grid gap-2 sm:grid-cols-2">
+                            {p.developers.map((d: any) => (
+                              <div key={d.id} className="flex items-center justify-between gap-2 rounded-xl bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800 px-3 py-2">
+                                <div className="min-w-0">
+                                  <span className="block truncate text-xs font-bold text-slate-900 dark:text-white">{d.name}</span>
+                                  <span className="block truncate text-[10px] text-slate-400">
+                                    {[d.role, d.experience].filter(Boolean).join(", ")}
+                                  </span>
+                                </div>
+                                <Link href={`/developers/${d.id}`} className="shrink-0 text-xs font-bold text-blue-600 hover:underline">
+                                  Profile
+                                </Link>
+                              </div>
+                            ))}
+                          </div>
+                        </ProjSection>
+                      )}
+
+                      {/* Linked Subscriptions */}
+                      {p.subscriptions && p.subscriptions.length > 0 && (
+                        <ProjSection title="Linked Subscriptions" icon={<Package className="h-3.5 w-3.5 text-indigo-500" />} count={p.subscriptions.length} {...sec("subscriptions")}>
+                          <div className="space-y-2">
+                            {p.subscriptions.map((s: any) => {
+                              const expiring = isExpiringSoon(s);
+                              return (
+                                <div key={s.id} className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-800 px-3 py-2">
+                                  <div className="flex flex-wrap items-center gap-2 min-w-0">
+                                    <span className="inline-flex rounded-full bg-white dark:bg-slate-900 border border-indigo-200 dark:border-indigo-800 px-2.5 py-0.5 text-[10px] font-extrabold text-indigo-600 dark:text-indigo-300">
+                                      {s.category}
+                                    </span>
+                                    {s.name && <span className="truncate text-xs font-bold text-indigo-900 dark:text-indigo-200">{s.name}</span>}
+                                    <span className="text-xs font-extrabold text-indigo-700 dark:text-indigo-300">
+                                      {Number(s.amount) === 0 ? "Free" : `₹${Number(s.amount).toLocaleString("en-IN")}${cycleSuffix(s.billingCycle)}`}
+                                    </span>
+                                  </div>
+                                  <span className={`rounded-full border px-2.5 py-0.5 text-[10px] font-extrabold ${
+                                    expiring
+                                      ? "bg-amber-100 border-amber-300 text-amber-700 dark:bg-amber-950/60 dark:border-amber-800 dark:text-amber-300"
+                                      : "bg-white border-indigo-200 text-indigo-600 dark:bg-slate-900 dark:border-indigo-800 dark:text-indigo-300"
+                                  }`}>
+                                    {expiring ? "Expiring soon" : s.status}
+                                  </span>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </ProjSection>
+                      )}
+
+                      {/* Finance summary progress */}
+                      {p.finance && (() => {
+                        const budget    = Number(p.finance.totalBudget ?? p.budget ?? 0);
+                        const paid      = Number(p.finance.totalPaid ?? 0);
+                        const remaining = Number(p.finance.remainingBalance ?? (budget - paid));
+                        const pct       = budget > 0 ? Math.min(100, Math.round((paid / budget) * 100)) : 0;
+                        return (
+                          <ProjSection title="Financial Breakdown & Progress" icon={<Wallet className="h-3.5 w-3.5 text-emerald-500" />} {...sec("finance")}>
+                            <div className="grid grid-cols-3 gap-2 text-center">
+                              <div>
+                                <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Budget</p>
+                                <p className="text-xs font-extrabold text-slate-900 dark:text-white">₹{budget.toLocaleString("en-IN")}</p>
+                              </div>
+                              <div>
+                                <p className="text-[10px] font-bold uppercase tracking-wider text-emerald-600">Paid</p>
+                                <p className="text-xs font-extrabold text-emerald-700 dark:text-emerald-300">₹{paid.toLocaleString("en-IN")}</p>
+                              </div>
+                              <div>
+                                <p className="text-[10px] font-bold uppercase tracking-wider text-amber-600">Remaining</p>
+                                <p className="text-xs font-extrabold text-amber-700 dark:text-amber-300">₹{remaining.toLocaleString("en-IN")}</p>
+                              </div>
+                            </div>
+                            <div className="h-2 w-full overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800 mt-2">
+                              <div className="h-full rounded-full bg-emerald-500 transition-all" style={{ width: `${pct}%` }} />
+                            </div>
+                            <p className="text-right text-[10px] font-extrabold text-emerald-600">{pct}% Paid</p>
+                          </ProjSection>
+                        );
+                      })()}
+
+                      {/* Documents section */}
+                      {(() => {
+                        const projDocs = p.documents ?? documents.filter((d: any) => d.projectId === pid);
+                        const count = (p.estimationPdfUrl ? 1 : 0) + (p.projectPdfUrl ? 1 : 0) + projDocs.length;
+                        return (
+                          <ProjSection title="Project Documents & PDF Attachments" icon={<FileText className="h-3.5 w-3.5 text-blue-500" />} count={count} {...sec("documents")}>
+                            {count === 0 ? (
+                              <p className="py-2 text-center text-xs font-bold text-slate-400">No documents attached.</p>
+                            ) : (
+                              <div className="space-y-2">
+                                {p.estimationPdfUrl && (
+                                  <div className="flex items-center justify-between gap-3 rounded-xl border border-slate-200/80 bg-slate-50/50 dark:border-slate-800 dark:bg-slate-900 px-3 py-2">
+                                    <div className="flex min-w-0 items-center gap-2.5">
+                                      <FileText className="h-4 w-4 shrink-0 text-blue-500" />
+                                      <span className="truncate text-xs font-bold text-slate-900 dark:text-white">Estimation PDF</span>
+                                    </div>
+                                    <button
+                                      onClick={() => viewProjectPdf("estimation", p.id)}
+                                      className="inline-flex items-center gap-1.5 rounded-lg border border-blue-200 bg-blue-50 px-3 py-1 text-xs font-bold text-blue-600 hover:bg-blue-100 dark:bg-blue-950/40 dark:border-blue-800 dark:text-blue-300"
+                                    >
+                                      <ExternalLink className="h-3.5 w-3.5" />View PDF
+                                    </button>
+                                  </div>
+                                )}
+
+                                {p.projectPdfUrl && (
+                                  <div className="flex items-center justify-between gap-3 rounded-xl border border-slate-200/80 bg-slate-50/50 dark:border-slate-800 dark:bg-slate-900 px-3 py-2">
+                                    <div className="flex min-w-0 items-center gap-2.5">
+                                      <FileText className="h-4 w-4 shrink-0 text-blue-500" />
+                                      <span className="truncate text-xs font-bold text-slate-900 dark:text-white">Contract PDF</span>
+                                    </div>
+                                    <button
+                                      onClick={() => viewProjectPdf("project", p.id)}
+                                      className="inline-flex items-center gap-1.5 rounded-lg border border-blue-200 bg-blue-50 px-3 py-1 text-xs font-bold text-blue-600 hover:bg-blue-100 dark:bg-blue-950/40 dark:border-blue-800 dark:text-blue-300"
+                                    >
+                                      <ExternalLink className="h-3.5 w-3.5" />View PDF
+                                    </button>
+                                  </div>
+                                )}
+
+                                {projDocs.map((doc: any) => (
+                                  <div key={doc.id} className="flex items-center justify-between gap-3 rounded-xl border border-slate-200/80 bg-slate-50/50 dark:border-slate-800 dark:bg-slate-900 px-3 py-2">
+                                    <div className="flex min-w-0 items-center gap-2.5">
+                                      <FileText className="h-4 w-4 shrink-0 text-blue-500" />
+                                      <div className="min-w-0">
+                                        <p className="truncate text-xs font-bold text-slate-900 dark:text-white">{doc.fileName}</p>
+                                        <p className="text-[10px] text-slate-400 font-semibold">{formatFileSize(doc.fileSize)}</p>
+                                      </div>
+                                    </div>
+                                    <button
+                                      onClick={() => viewDoc(doc.id)}
+                                      className="inline-flex items-center gap-1.5 rounded-lg border border-blue-200 bg-blue-50 px-3 py-1 text-xs font-bold text-blue-600 hover:bg-blue-100 dark:bg-blue-950/40 dark:border-blue-800 dark:text-blue-300"
+                                    >
+                                      <ExternalLink className="h-3.5 w-3.5" />View File
+                                    </button>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </ProjSection>
+                        );
+                      })()}
+
+                      {/* Status toggle actions (only while in estimation phase) */}
+                      {isEstimationStage && (
+                        <div className="flex items-center gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
+                          <span className="text-xs font-bold text-slate-400 mr-1">Status Controls:</span>
+                          {(["Pending", "Converted", "Rejected"] as const).map((st) => (
+                            <button
+                              key={st}
+                              type="button"
+                              disabled={status === st}
+                              onClick={() =>
+                                st === "Converted"
+                                  ? openConvertModal(p)
+                                  : handleUpdateProjectStatus(p.id, st)
+                              }
+                              className={`text-xs font-bold px-3 py-1 rounded-xl border transition ${
+                                status === st
+                                  ? st === "Rejected"
+                                    ? "bg-rose-100 border-rose-300 text-rose-600 dark:bg-rose-950/60 dark:border-rose-800 dark:text-rose-300"
+                                    : "bg-amber-100 border-amber-300 text-amber-700 dark:bg-amber-950/60 dark:border-amber-800 dark:text-amber-300"
+                                  : st === "Converted"
+                                  ? "bg-emerald-600 border-emerald-600 text-white hover:bg-emerald-700 shadow-sm"
+                                  : "bg-white border-slate-200 text-slate-600 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300 hover:bg-slate-50"
+                              }`}
+                            >
+                              {st === "Converted" ? "Convert Project" : st}
+                            </button>
+                          ))}
                         </div>
                       )}
+
+                      <div className="flex justify-end pt-1">
+                        <Link href={`/projects/${p.id}`} className="inline-flex items-center gap-1 text-xs font-extrabold text-blue-600 hover:underline">
+                          Open Project Details <ArrowRight className="h-3.5 w-3.5" />
+                        </Link>
+                      </div>
                     </div>
                   )}
                 </div>
