@@ -143,23 +143,6 @@ function renderEstimationQuotationPdf(doc: any, project: any) {
   }
   const displayTotal = baseItemsTotal > 0 ? baseItemsTotal : Number(project.budget || project.projectCost || 50000);
 
-  // ── KEY HIGHLIGHTS SUMMARY CARD (PRICE, DELIVERY DAYS & COMPLIMENTARY) ────
-  doc.rect(45, y, 450, 40).fillAndStroke('#f0fdfa', '#007a87');
-  
-  // Highlight 1: Price
-  doc.fillColor(primaryTeal).fontSize(7.5).font('Helvetica-Bold').text('ESTIMATED PRICE', 55, y + 6, { width: 140 });
-  doc.fillColor(accentOrange).fontSize(11).font('Helvetica-Bold').text(`Rs. ${displayTotal.toLocaleString('en-IN')}/-`, 55, y + 18, { width: 140, lineBreak: false });
-
-  // Highlight 2: Delivery Days + Date
-  doc.fillColor(primaryTeal).fontSize(7.5).font('Helvetica-Bold').text('DELIVERY TIMELINE', 205, y + 6, { width: 130 });
-  doc.fillColor(primaryTeal).fontSize(10).font('Helvetica-Bold').text(highlightTimelineText, 205, y + 18, { width: 135, lineBreak: false, ellipsis: true });
-
-  // Highlight 3: Included Free Services
-  doc.fillColor(primaryTeal).fontSize(7.5).font('Helvetica-Bold').text('INCLUDED COMPLIMENTARY', 345, y + 6, { width: 145 });
-  doc.fillColor('#059669').fontSize(8.5).font('Helvetica-Bold').text('Free Domain, Hosting & Support', 345, y + 20, { width: 145, lineBreak: false });
-
-  y += 48;
-
   // ── 1. CLIENT INFORMATION CARD ─────────────────────────────────────────────
   const customerName = project.customer?.fullName || project.clientName || 'Valued Client';
   const companyName = project.customer?.companyName || '—';
