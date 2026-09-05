@@ -111,14 +111,26 @@ function renderEstimationQuotationPdf(doc: any, project: any) {
   doc.rect(45, y, 220, 2.5).fill(accentOrange);
   y += 12;
 
-  // ── Calculate Delivery Days ───────────────────────────────────────────────
+  // ── Calculate Delivery Days & Target Completion Date ──────────────────────
   let totalWorkingDays = 0;
   if (Array.isArray(project.timelines) && project.timelines.length > 0) {
     totalWorkingDays = project.timelines.reduce((sum: number, t: any) => sum + (parseInt(String(t.workingDays || 0)) || 0), 0);
   }
-  const deliveryDaysText = totalWorkingDays > 0 
-    ? `${totalWorkingDays} Working Days` 
-    : (project.estimatedDeliveryTime || (project.deadline ? `${Math.max(1, Math.ceil((new Date(project.deadline).getTime() - new Date().getTime()) / (1000 * 3600 * 24)))} Days` : '45 Working Days'));
+  const daysNum = totalWorkingDays > 0 ? totalWorkingDays : 60;
+  const daysText = `${daysNum} Days`;
+
+  let targetDateStr = '';
+  if (project.deadline) {
+    targetDateStr = formatDate(project.deadline);
+  } else {
+    const calcDate = new Date(project.createdAt || Date.now());
+    const calendarDays = Math.ceil((daysNum * 7) / 5) + 2;
+    calcDate.setDate(calcDate.getDate() + calendarDays);
+    targetDateStr = formatDate(calcDate);
+  }
+
+  const highlightTimelineText = `${daysText} (${targetDateStr})`;
+  const fullDeliveryText = `${daysText}  (Target Date: ${targetDateStr})`;
 
   // Calculate Total Cost
   let baseItemsTotal = 0;
@@ -138,9 +150,9 @@ function renderEstimationQuotationPdf(doc: any, project: any) {
   doc.fillColor(primaryTeal).fontSize(7.5).font('Helvetica-Bold').text('ESTIMATED PRICE', 55, y + 6, { width: 140 });
   doc.fillColor(accentOrange).fontSize(11).font('Helvetica-Bold').text(`Rs. ${displayTotal.toLocaleString('en-IN')}/-`, 55, y + 18, { width: 140, lineBreak: false });
 
-  // Highlight 2: Delivery Days
+  // Highlight 2: Delivery Days + Date
   doc.fillColor(primaryTeal).fontSize(7.5).font('Helvetica-Bold').text('DELIVERY TIMELINE', 205, y + 6, { width: 130 });
-  doc.fillColor(primaryTeal).fontSize(11).font('Helvetica-Bold').text(deliveryDaysText, 205, y + 18, { width: 130, lineBreak: false });
+  doc.fillColor(primaryTeal).fontSize(10).font('Helvetica-Bold').text(highlightTimelineText, 205, y + 18, { width: 135, lineBreak: false, ellipsis: true });
 
   // Highlight 3: Included Free Services
   doc.fillColor(primaryTeal).fontSize(7.5).font('Helvetica-Bold').text('INCLUDED COMPLIMENTARY', 345, y + 6, { width: 145 });
@@ -450,8 +462,7 @@ function renderEstimationQuotationPdf(doc: any, project: any) {
 
   // ── 6. PROJECT TIMELINE & SUPPORT COVERAGE CARD ────────────────────────────
   ensureSpace(50);
-  const deliveryTime = project.estimatedDeliveryTime || (project.deadline ? `${Math.ceil((new Date(project.deadline).getTime() - new Date().getTime()) / (1000 * 3600 * 24))} Days` : '30 - 45 Working Days');
-  const supportPeriod = project.supportPeriod || '3 Months Included';
+  const supportPeriod = project.supportPeriod || '1 Year Free Maintenance & 24/7 Technical Support Included';
 
   const suppH = doc.heightOfString(`Support & Maintenance  :  ${supportPeriod}`, { width: 325 });
   const timelineCardH = Math.max(54, 36 + suppH + 10);
@@ -461,7 +472,7 @@ function renderEstimationQuotationPdf(doc: any, project: any) {
 
   // Line 1: Delivery Time
   doc.fillColor(primaryTeal).fontSize(8.5).font('Helvetica-Bold').text('Estimated Delivery Time', 55, y + 22, { width: 110 });
-  doc.fillColor(darkText).fontSize(8.5).font('Helvetica-Bold').text(`:  ${deliveryTime}`, 165, y + 22, { width: 100 });
+  doc.fillColor(darkText).fontSize(8.5).font('Helvetica-Bold').text(`:  ${fullDeliveryText}`, 165, y + 22, { width: 325 });
 
   // Line 2: Support & Maintenance
   doc.fillColor(primaryTeal).fontSize(8.5).font('Helvetica-Bold').text('Support & Maintenance', 55, y + 36, { width: 110 });
