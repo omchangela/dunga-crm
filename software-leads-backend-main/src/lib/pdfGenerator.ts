@@ -29,7 +29,7 @@ function drawLetterheadBackground(doc: any) {
 
 function formatINR(val: number | string): string {
   const num = parseFloat(String(val || 0));
-  return '₹' + num.toLocaleString('en-IN');
+  return 'Rs. ' + num.toLocaleString('en-IN');
 }
 
 function formatDate(val: any): string {
@@ -93,7 +93,7 @@ function renderEstimationQuotationPdf(doc: any, project: any) {
   doc.fillColor(primaryTeal).fontSize(16).font('Helvetica-Bold').text('ESTIMATION / QUOTATION', 45, y, { lineBreak: false });
   y += 20;
   const projectTitle = (project.projectName || project.serviceType || 'SOFTWARE DEVELOPMENT SERVICES').toUpperCase();
-  doc.fillColor(darkText).fontSize(10).font('Helvetica-Bold').text(`FOR ${projectTitle}`, 45, y, { lineBreak: false });
+  doc.fillColor(darkText).fontSize(10).font('Helvetica-Bold').text(`FOR ${projectTitle}`, 45, y, { width: 440, height: 14, lineBreak: false, ellipsis: true });
   y += 14;
 
   // Orange underline accent bar
@@ -110,46 +110,50 @@ function renderEstimationQuotationPdf(doc: any, project: any) {
   const cardHeight = 58;
   doc.rect(45, y, 450, cardHeight).fillAndStroke('#f8fafc', '#cbd5e1');
 
-  // Left Column
-  doc.fillColor(primaryTeal).fontSize(8.5).font('Helvetica-Bold').text('CLIENT NAME', 55, y + 8);
-  doc.fillColor(darkText).fontSize(8.5).font('Helvetica-Bold').text(`:  ${customerName}`, 140, y + 8);
+  // Left Column (Bounds: 55 to 260)
+  doc.fillColor(primaryTeal).fontSize(8.5).font('Helvetica-Bold').text('CLIENT NAME', 55, y + 8, { width: 80 });
+  doc.fillColor(darkText).fontSize(8.5).font('Helvetica-Bold').text(`:  ${customerName}`, 135, y + 8, { width: 125, height: 12, lineBreak: false, ellipsis: true });
 
-  doc.fillColor(primaryTeal).fontSize(8.5).font('Helvetica-Bold').text('PHONE NUMBER', 55, y + 24);
-  doc.fillColor(darkText).fontSize(8.5).font('Helvetica').text(`:  ${phone}`, 140, y + 24);
+  doc.fillColor(primaryTeal).fontSize(8.5).font('Helvetica-Bold').text('PHONE NUMBER', 55, y + 24, { width: 80 });
+  doc.fillColor(darkText).fontSize(8.5).font('Helvetica').text(`:  ${phone}`, 135, y + 24, { width: 125, height: 12, lineBreak: false, ellipsis: true });
 
-  doc.fillColor(primaryTeal).fontSize(8.5).font('Helvetica-Bold').text('LOCATION', 55, y + 40);
-  doc.fillColor(darkText).fontSize(8.5).font('Helvetica').text(`:  ${location}`, 140, y + 40);
+  doc.fillColor(primaryTeal).fontSize(8.5).font('Helvetica-Bold').text('LOCATION', 55, y + 40, { width: 80 });
+  doc.fillColor(darkText).fontSize(8.5).font('Helvetica').text(`:  ${location}`, 135, y + 40, { width: 125, height: 12, lineBreak: false, ellipsis: true });
 
-  // Right Column
-  doc.fillColor(primaryTeal).fontSize(8.5).font('Helvetica-Bold').text('COMPANY NAME', 270, y + 8);
-  doc.fillColor(darkText).fontSize(8.5).font('Helvetica').text(`:  ${companyName}`, 360, y + 8);
+  // Right Column (Bounds: 270 to 490)
+  doc.fillColor(primaryTeal).fontSize(8.5).font('Helvetica-Bold').text('COMPANY NAME', 270, y + 8, { width: 85 });
+  doc.fillColor(darkText).fontSize(8.5).font('Helvetica').text(`:  ${companyName}`, 360, y + 8, { width: 130, height: 12, lineBreak: false, ellipsis: true });
 
-  doc.fillColor(primaryTeal).fontSize(8.5).font('Helvetica-Bold').text('EMAIL ADDRESS', 270, y + 24);
-  doc.fillColor(darkText).fontSize(8.5).font('Helvetica').text(`:  ${email}`, 360, y + 24);
+  doc.fillColor(primaryTeal).fontSize(8.5).font('Helvetica-Bold').text('EMAIL ADDRESS', 270, y + 24, { width: 85 });
+  doc.fillColor(darkText).fontSize(8.5).font('Helvetica').text(`:  ${email}`, 360, y + 24, { width: 130, height: 12, lineBreak: false, ellipsis: true });
 
-  doc.fillColor(primaryTeal).fontSize(8.5).font('Helvetica-Bold').text('SERVICE TYPE', 270, y + 40);
-  doc.fillColor(darkText).fontSize(8.5).font('Helvetica').text(`:  ${project.serviceType || 'Software Development'}`, 360, y + 40);
+  doc.fillColor(primaryTeal).fontSize(8.5).font('Helvetica-Bold').text('SERVICE TYPE', 270, y + 40, { width: 85 });
+  doc.fillColor(darkText).fontSize(8.5).font('Helvetica').text(`:  ${project.serviceType || 'Software Development'}`, 360, y + 40, { width: 130, height: 12, lineBreak: false, ellipsis: true });
 
   y += cardHeight + 10;
 
-  // Intro note
+  // Intro note with dynamic height calculation to prevent table header collision
+  const introStr = `Thank you for considering Dunga Technologies for your ${project.serviceType || 'project'} requirements. Please find below the estimation for the proposed services.`;
+  const introH = doc.heightOfString(introStr, { width: 450 });
+
   doc.fillColor(darkText).fontSize(8.5).font('Helvetica');
   doc.text('Thank you for considering ', 45, y, { continued: true });
   doc.fillColor(accentOrange).font('Helvetica-Bold').text('Dunga Technologies ', { continued: true });
   doc.fillColor(darkText).font('Helvetica').text(`for your ${project.serviceType || 'project'} requirements. Please find below the estimation for the proposed services.`);
-  y += 16;
+  
+  y += introH + 10;
 
   // ── 2. SERVICES & COMMERCIAL COST TABLE ──────────────────────────────────
-  const colX = [45, 80, 310, 375, 435];
-  const colW = [35, 230, 65, 60, 60];
+  const colX = [45, 80, 300, 360, 425];
+  const colW = [35, 215, 55, 65, 65];
 
   doc.rect(45, y, 450, 18).fill(primaryTeal);
   doc.fillColor('#ffffff').fontSize(8.5).font('Helvetica-Bold');
   doc.text('S.No.', colX[0], y + 4, { width: colW[0], align: 'center' });
   doc.text('DESCRIPTION / SCOPE ITEM', colX[1] + 5, y + 4, { width: colW[1] - 5, align: 'left' });
   doc.text('QUANTITY', colX[2], y + 4, { width: colW[2], align: 'center' });
-  doc.text('RATE (₹)', colX[3], y + 4, { width: colW[3], align: 'right' });
-  doc.text('AMOUNT (₹)', colX[4], y + 4, { width: colW[4], align: 'right' });
+  doc.text('RATE (Rs.)', colX[3], y + 4, { width: colW[3], align: 'right' });
+  doc.text('AMOUNT (Rs.)', colX[4], y + 4, { width: colW[4], align: 'right' });
   y += 18;
 
   // Prepare table items
@@ -209,8 +213,8 @@ function renderEstimationQuotationPdf(doc: any, project: any) {
   doc.fillColor(primaryTeal).fontSize(9).font('Helvetica-Bold').text('TOTAL ESTIMATED VALUE', 55, y + 6);
 
   // Orange Total Badge Box
-  doc.rect(345, y + 2, 150, 18).fill(accentOrange);
-  doc.fillColor('#ffffff').fontSize(9.5).font('Helvetica-Bold').text(`₹ ${finalTotal.toLocaleString('en-IN')}/-`, 345, y + 5, { width: 150, align: 'center' });
+  doc.rect(340, y + 2, 150, 18).fill(accentOrange);
+  doc.fillColor('#ffffff').fontSize(9.5).font('Helvetica-Bold').text(`Rs. ${finalTotal.toLocaleString('en-IN')}/-`, 340, y + 5, { width: 150, align: 'center' });
 
   y += totalRowH + 12;
 
@@ -219,22 +223,26 @@ function renderEstimationQuotationPdf(doc: any, project: any) {
   const balanceAmount = Math.max(0, finalTotal - advanceAmount);
 
   const paymentCardH = 55;
-  doc.rect(45, y, 450, paymentCardH).fillAndStroke('#f0fdfa', '#a7f3d0');
+  doc.rect(45, y, 450, paymentCardH).fillAndStroke('#f0fdfa', '#cbd5e1');
 
-  // Circle Badge
-  doc.circle(75, y + 27, 18).fill(primaryTeal);
-  doc.fillColor('#ffffff').fontSize(11).font('Helvetica-Bold').text('₹', 65, y + 22, { width: 20, align: 'center' });
+  // Left Section - Circle Badge & Payment Terms
+  doc.circle(75, y + 27, 16).fill(primaryTeal);
+  doc.fillColor('#ffffff').fontSize(8.5).font('Helvetica-Bold').text('PAY', 60, y + 23, { width: 30, align: 'center' });
 
-  // Left Section
-  doc.fillColor(primaryTeal).fontSize(9).font('Helvetica-Bold').text('PAYMENT TERMS', 105, y + 10);
-  doc.fillColor(darkText).fontSize(8.5).font('Helvetica-Bold').text(`₹${advanceAmount.toLocaleString('en-IN')} Advance`, 105, y + 24);
-  doc.rect(105, y + 36, 110, 13).fill('#ffedd5');
-  doc.fillColor(accentOrange).fontSize(7.5).font('Helvetica-Bold').text('50% ADVANCE REQUIRED', 105, y + 39, { width: 110, align: 'center' });
+  doc.fillColor(primaryTeal).fontSize(9).font('Helvetica-Bold').text('PAYMENT TERMS', 102, y + 8);
+  doc.fillColor(darkText).fontSize(8.5).font('Helvetica-Bold').text(`Rs. ${advanceAmount.toLocaleString('en-IN')} Advance`, 102, y + 22);
+  doc.rect(102, y + 35, 115, 13).fill('#ffedd5');
+  doc.fillColor(accentOrange).fontSize(7.5).font('Helvetica-Bold').text('50% ADVANCE REQUIRED', 102, y + 38, { width: 115, align: 'center' });
 
-  // Right Section
-  doc.fillColor(primaryTeal).fontSize(8.5).font('Helvetica-Bold').text('TOTAL ESTIMATED AMOUNT', 260, y + 10);
-  doc.fillColor(accentOrange).fontSize(14).font('Helvetica-Bold').text(`₹${finalTotal.toLocaleString('en-IN')}/-`, 260, y + 22);
-  doc.fillColor(mutedText).fontSize(7.5).font('Helvetica').text(`Payment Schedule: ${advanceAmount > 0 ? `${formatINR(advanceAmount)} advance, balance ${formatINR(balanceAmount)} upon delivery.` : '100% payment as per agreed milestones.'}`, 260, y + 39, { width: 220 });
+  // Divider Line
+  doc.moveTo(235, y + 8).lineTo(235, y + 47).strokeColor('#cbd5e1').stroke();
+
+  // Right Section - Total & Schedule
+  doc.fillColor(primaryTeal).fontSize(8.5).font('Helvetica-Bold').text('TOTAL ESTIMATED AMOUNT', 250, y + 8);
+  doc.fillColor(accentOrange).fontSize(14).font('Helvetica-Bold').text(`Rs. ${finalTotal.toLocaleString('en-IN')}/-`, 250, y + 20);
+
+  const scheduleText = `Payment Schedule: Rs. ${advanceAmount.toLocaleString('en-IN')} advance, balance Rs. ${balanceAmount.toLocaleString('en-IN')} upon delivery.`;
+  doc.fillColor(mutedText).fontSize(7.5).font('Helvetica').text(scheduleText, 250, y + 37, { width: 235, height: 16, lineBreak: true });
 
   y += paymentCardH + 12;
 
@@ -242,15 +250,21 @@ function renderEstimationQuotationPdf(doc: any, project: any) {
   const deliveryTime = project.estimatedDeliveryTime || (project.deadline ? `${Math.ceil((new Date(project.deadline).getTime() - new Date().getTime()) / (1000 * 3600 * 24))} Days` : '30 - 45 Working Days');
   const supportPeriod = project.supportPeriod || '3 Months Included';
 
-  const timelineCardH = 45;
+  // Calculate dynamic card height to accommodate long support maintenance descriptions
+  const suppH = doc.heightOfString(supportPeriod, { width: 125 });
+  const timelineCardH = Math.max(45, 24 + suppH + 8);
+
   doc.rect(45, y, 450, timelineCardH).fillAndStroke('#fff7ed', '#fed7aa');
 
   doc.fillColor(accentOrange).fontSize(9).font('Helvetica-Bold').text('PROJECT TIMELINE & SUPPORT COVERAGE', 55, y + 8);
-  doc.fillColor(darkText).fontSize(8.5).font('Helvetica-Bold').text('Estimated Delivery Time :', 55, y + 24);
-  doc.fillColor(darkText).fontSize(8.5).font('Helvetica').text(deliveryTime, 175, y + 24);
+  
+  // Left Column: Delivery Time
+  doc.fillColor(darkText).fontSize(8.5).font('Helvetica-Bold').text('Estimated Delivery Time :', 55, y + 24, { width: 110 });
+  doc.fillColor(darkText).fontSize(8.5).font('Helvetica').text(deliveryTime, 168, y + 24, { width: 80 });
 
-  doc.fillColor(darkText).fontSize(8.5).font('Helvetica-Bold').text('Support & Maintenance  :', 280, y + 24);
-  doc.fillColor(darkText).fontSize(8.5).font('Helvetica').text(supportPeriod, 395, y + 24);
+  // Right Column: Support & Maintenance
+  doc.fillColor(darkText).fontSize(8.5).font('Helvetica-Bold').text('Support & Maintenance  :', 255, y + 24, { width: 110 });
+  doc.fillColor(darkText).fontSize(8.5).font('Helvetica').text(supportPeriod, 368, y + 24, { width: 125 });
 
   y += timelineCardH + 12;
 
@@ -265,7 +279,7 @@ function renderEstimationQuotationPdf(doc: any, project: any) {
   const tcLines = [
     '1. The quoted amount is applicable for the specified project scope.',
     '2. Advance payment of 50% is required before commencement of development.',
-    `3. Remaining balance amount of ₹${balanceAmount.toLocaleString('en-IN')} is payable upon delivery.`,
+    `3. Remaining balance amount of Rs. ${balanceAmount.toLocaleString('en-IN')} is payable upon delivery.`,
     '4. Any additional features requested outside agreed scope will be quoted separately.',
     '5. Service commencement & delivery timeline starts after advance payment confirmation.',
   ];
