@@ -88,10 +88,7 @@ function renderEstimationQuotationPdf(doc: any, project: any) {
     if (y + neededHeight > 670) {
       doc.addPage();
       drawLetterheadBackground(doc);
-      // Mini Header on subsequent pages
-      doc.fillColor(primaryTeal).fontSize(9).font('Helvetica-Bold').text('DUNGA TECHNOLOGIES — PROJECT ESTIMATION / QUOTATION', 140, 48, { width: 325, align: 'right', lineBreak: false });
-      doc.fillColor(mutedText).fontSize(8).font('Helvetica').text(`Ref: ${estNumber}`, 140, 60, { width: 325, align: 'right', lineBreak: false });
-      y = 160;
+      y = 145;
     }
   };
 
@@ -468,39 +465,44 @@ function renderEstimationQuotationPdf(doc: any, project: any) {
 
   y += timelineCardH + 14;
 
-  // ── 7. TERMS & CONDITIONS AND NOTE ───────────────────────────────────────
-  ensureSpace(80);
+  // ── 7. TERMS & CONDITIONS (FULL WIDTH / COL 12) ─────────────────────────
+  ensureSpace(120);
   doc.fillColor(primaryTeal).fontSize(9).font('Helvetica-Bold').text('TERMS & CONDITIONS', 45, y);
-  doc.fillColor(primaryTeal).fontSize(9).font('Helvetica-Bold').text('NOTE', 320, y);
   y += 12;
-
-  const tcWidth = 260;
-  const noteWidth = 175;
 
   const tcLines = [
     '1. The quoted amount is applicable for the specified project scope.',
     '2. Advance payment of 50% is required before commencement of development.',
-    `3. Remaining balance amount of Rs. ${balanceAmount.toLocaleString('en-IN')} is payable upon milestone delivery.`,
-    '4. Any additional features requested outside agreed scope will be quoted separately.',
-    '5. Service commencement & delivery timeline starts after advance payment confirmation.',
+    `3. Remaining balance amount of Rs. ${balanceAmount.toLocaleString('en-IN')} is payable upon milestone/stage delivery as specified in the payment schedule.`,
+    '4. Any additional features, change requests, or scope modifications requested outside the agreed specification will be quoted separately.',
+    '5. Service commencement and project delivery timeline start only after the advance payment confirmation and receipt of required assets.',
   ];
 
-  const startTcY = y;
-  doc.fillColor(darkText).fontSize(7.5).font('Helvetica');
+  doc.fillColor(darkText).fontSize(8).font('Helvetica');
   tcLines.forEach((line) => {
-    doc.text(line, 45, y, { width: tcWidth });
-    y += doc.heightOfString(line, { width: tcWidth }) + 3;
+    const lineH = doc.heightOfString(line, { width: 445 });
+    ensureSpace(lineH + 4);
+    doc.text(line, 45, y, { width: 445 });
+    y += lineH + 4;
   });
 
-  // Right Side Note Box
-  let noteY = startTcY;
-  doc.fillColor(darkText).fontSize(7.5).font('Helvetica');
-  doc.text('We are committed to delivering result-oriented, high-performance software & digital solutions to help your business grow.', 320, noteY, { width: noteWidth });
-  noteY += 28;
+  y += 8;
 
-  doc.fillColor(accentOrange).fontSize(13).font('Helvetica-Bold').text('Thank You!', 320, noteY);
-  noteY += 16;
-  doc.fillColor(darkText).fontSize(8).font('Helvetica').text('We look forward to working with you.', 320, noteY);
+  // ── 8. NOTE & THANK YOU CARD (SET BELOW TERMS & CONDITIONS) ─────────────
+  ensureSpace(48);
+  const noteCardH = 44;
+  doc.rect(45, y, 450, noteCardH).fillAndStroke('#f0fdfa', '#007a87');
+
+  doc.fillColor(primaryTeal).fontSize(8.5).font('Helvetica-Bold').text('NOTE:', 55, y + 8);
+  doc.fillColor(darkText).fontSize(8).font('Helvetica').text(
+    'We are committed to delivering result-oriented, high-performance software & digital solutions to help your business grow.',
+    90, y + 8, { width: 395, height: 12, lineBreak: false, ellipsis: true }
+  );
+
+  doc.fillColor(accentOrange).fontSize(11).font('Helvetica-Bold').text(
+    'Thank You! We look forward to a successful partnership.',
+    55, y + 25, { width: 430, align: 'center', lineBreak: false }
+  );
 }
 
 // ── 2. MASTER PROJECT CONTRACT PDF (AGREEMENT VER. 1.0) ──────────────────────
