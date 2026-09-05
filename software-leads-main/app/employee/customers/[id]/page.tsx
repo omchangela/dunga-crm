@@ -601,7 +601,7 @@ export default function EmployeeCustomerDetailPage() {
                 const view   = PROJECT_STATUS_VIEW[status] ?? PROJECT_STATUS_VIEW["Pending"];
                 const isEstimationStage = status === "Pending" || status === "Rejected";
                 const pid    = p.id || `proj-${index}`;
-                const expanded = !!expandedProjects[pid];
+                const expanded = expandedProjects[pid] ?? true;
                 const sec = (name: string) => ({
                   open: openProjSection[`${pid}:${name}`] ?? true,
                   onToggle: () => toggleProjSection(`${pid}:${name}`),

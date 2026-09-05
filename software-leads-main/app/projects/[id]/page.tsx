@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import {
-  ArrowLeft, User, Phone, Mail, FolderKanban,
+  ArrowLeft, User, Phone, Mail, FolderKanban, Layers,
   Hash, CalendarDays, DollarSign, Tag, Pencil, X, Code2, Check, CheckSquare,
   Plus, Trash2, IndianRupee, FileText, Loader2, Eye, ExternalLink, ArrowRight, CheckCircle2,
 } from "lucide-react";
@@ -437,6 +437,50 @@ export default function ProjectDetailPage() {
         </div>
 
       </div>
+
+      {/* ══ PROJECT OVERVIEW & SCOPE BREAKDOWN CARD ══ */}
+      {project.overview && (project.overview.web?.length || project.overview.app?.length || project.overview.admin?.length) ? (
+        <div className="rounded-3xl border border-slate-200/80 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900 space-y-6">
+          <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-4">
+            <div>
+              <h2 className="text-base font-extrabold text-slate-900 dark:text-white flex items-center gap-2">
+                <Layers className="h-5 w-5 text-blue-600" /> Project Overview & Scope Breakdown
+              </h2>
+              <p className="mt-0.5 text-xs text-slate-500">Categorized module features (Web, App, Admin)</p>
+            </div>
+          </div>
+
+          <div className="grid gap-4 sm:grid-cols-3">
+            {([
+              { items: project.overview.web,   label: "Web Features",   dot: "bg-blue-500",    border: "border-blue-100 dark:border-blue-900/50",    bg: "bg-blue-50/40 dark:bg-blue-950/20" },
+              { items: project.overview.app,   label: "App Features",   dot: "bg-emerald-500", border: "border-emerald-100 dark:border-emerald-900/50", bg: "bg-emerald-50/40 dark:bg-emerald-950/20" },
+              { items: project.overview.admin, label: "Admin Features", dot: "bg-purple-500",  border: "border-purple-100 dark:border-purple-900/50", bg: "bg-purple-50/40 dark:bg-purple-950/20" },
+            ] as const).map((cat) => (
+              <div key={cat.label} className={`rounded-2xl border ${cat.border} ${cat.bg} p-4 space-y-3`}>
+                <div className="flex items-center gap-2 border-b border-slate-200/60 dark:border-slate-800 pb-2">
+                  <span className={`h-2.5 w-2.5 rounded-full ${cat.dot}`} />
+                  <span className="text-xs font-extrabold text-slate-900 dark:text-white uppercase tracking-wider">{cat.label}</span>
+                  <span className="ml-auto rounded-full bg-white dark:bg-slate-900 border px-2 py-0.5 text-[10px] font-extrabold text-slate-600 dark:text-slate-300">
+                    {cat.items?.length || 0}
+                  </span>
+                </div>
+                {cat.items && cat.items.length > 0 ? (
+                  <div className="space-y-2">
+                    {cat.items.map((item: string, idx: number) => (
+                      <div key={idx} className="flex items-start gap-2 text-xs font-semibold text-slate-700 dark:text-slate-300">
+                        <span className="h-1.5 w-1.5 rounded-full bg-slate-400 mt-1.5 shrink-0" />
+                        <span>{item}</span>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-xs text-slate-400 font-medium">No items specified.</p>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      ) : null}
 
       {/* Assigned Engineering Team Card */}
       <div className="rounded-3xl border border-slate-200/80 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900 space-y-6">

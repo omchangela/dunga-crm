@@ -521,13 +521,16 @@ export default function CustomerDetailPage() {
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 dark:border-slate-800 pb-4">
           <div>
             <h2 className="text-base font-extrabold text-slate-900 dark:text-white flex items-center gap-2">
-              <Briefcase className="h-5 w-5 text-blue-600" /> Client Projects Directory
+              <Briefcase className="h-5 w-5 text-blue-600" /> Project Tracking Section
+              <span className="rounded-full bg-blue-50 border border-blue-200 px-2.5 py-0.5 text-xs font-bold text-blue-600 dark:bg-blue-950/40 dark:border-blue-800 dark:text-blue-300">
+                {projects.length} Active
+              </span>
             </h2>
-            <p className="mt-0.5 text-xs text-slate-500">{projects.length} Projects associated with this account</p>
+            <p className="mt-0.5 text-xs text-slate-500">Capture scope, estimation, timeline, and deliverables for {customer.fullName}.</p>
           </div>
           {!showAddProj && (
             <Button size="sm" onClick={() => setShowAddProj(true)} className="rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs">
-              <Plus className="h-4 w-4 mr-1" /> Add Project Record
+              <Plus className="h-4 w-4 mr-1" /> Add Project Section
             </Button>
           )}
         </div>
@@ -537,8 +540,8 @@ export default function CustomerDetailPage() {
           <div className="rounded-3xl border border-blue-200 bg-blue-50/40 p-6 shadow-sm dark:border-blue-900/50 dark:bg-blue-950/20 space-y-5">
             <div className="flex items-center justify-between border-b border-blue-100 dark:border-blue-900/40 pb-3">
               <div>
-                <p className="text-sm font-extrabold text-slate-900 dark:text-white">Add New Project Record</p>
-                <p className="text-xs text-slate-500">Capture project scope, estimation, payment terms, and timeline for {customer.fullName}.</p>
+                <p className="text-sm font-extrabold text-slate-900 dark:text-white">New Project Record</p>
+                <p className="text-xs text-slate-500">Capture scope, estimation and timeline for {customer.fullName}.</p>
               </div>
               <button
                 type="button"
@@ -554,7 +557,7 @@ export default function CustomerDetailPage() {
                 <div>
                   <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Project Name *</label>
                   <input
-                    placeholder="e.g. ERP Platform, E-Commerce App"
+                    placeholder="e.g. Fact-Ops Platform, Weewa System"
                     value={projForm.projectName}
                     onChange={(e) => updateForm({ projectName: e.target.value })}
                     className="h-10 w-full rounded-xl border border-slate-200/80 bg-white px-3 text-xs font-semibold text-slate-900 dark:border-slate-800 dark:bg-slate-900 dark:text-white focus:border-blue-600 focus:outline-none"
@@ -580,9 +583,9 @@ export default function CustomerDetailPage() {
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Project Scope Description</label>
+                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Project Description</label>
                 <textarea
-                  placeholder="Describe scope details..."
+                  placeholder="Describe the project scope and goals..."
                   value={projForm.projectDescription}
                   onChange={(e) => updateForm({ projectDescription: e.target.value })}
                   rows={3}
@@ -592,7 +595,7 @@ export default function CustomerDetailPage() {
 
               {/* Status Selector */}
               <div>
-                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">Initial Pipeline Status</label>
+                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">Pipeline Status</label>
                 <div className="grid grid-cols-3 gap-2">
                   {["Pending", "Converted", "Rejected"].map((st) => (
                     <button
@@ -611,14 +614,14 @@ export default function CustomerDetailPage() {
                 </div>
               </div>
 
-              {/* Project Overview — Web / App / Admin description rows */}
+              {/* PROJECT OVERVIEW — Web / App / Admin description rows */}
               <div className="space-y-3 border-t border-slate-200/60 dark:border-slate-800 pt-4">
-                <label className="text-xs font-extrabold uppercase text-slate-500 tracking-wider">Project Overview Features</label>
+                <label className="text-xs font-extrabold uppercase text-slate-500 tracking-wider block">PROJECT OVERVIEW</label>
 
                 {([
-                  { key: "overviewWeb"   as OverviewKey, label: "Web Features",   dot: "bg-blue-400" },
-                  { key: "overviewApp"   as OverviewKey, label: "App Features",   dot: "bg-emerald-400" },
-                  { key: "overviewAdmin" as OverviewKey, label: "Admin Features", dot: "bg-purple-400" },
+                  { key: "overviewWeb"   as OverviewKey, label: "Web",   dot: "bg-blue-400" },
+                  { key: "overviewApp"   as OverviewKey, label: "App",   dot: "bg-emerald-400" },
+                  { key: "overviewAdmin" as OverviewKey, label: "Admin", dot: "bg-purple-400" },
                 ]).map((cat) => (
                   <div key={cat.key} className="rounded-2xl border border-slate-200/80 bg-white dark:border-slate-800 dark:bg-slate-900 p-3.5 space-y-2">
                     <div className="flex items-center justify-between">
@@ -629,7 +632,7 @@ export default function CustomerDetailPage() {
                         type="button"
                         onClick={() => addOverviewItem(cat.key)}
                         className="flex h-6 w-6 items-center justify-center rounded-full bg-blue-600 hover:bg-blue-700 text-white transition shadow-sm"
-                        title={`Add ${cat.label}`}
+                        title={`Add ${cat.label} description`}
                       >
                         <Plus className="h-3.5 w-3.5" />
                       </button>
@@ -640,7 +643,7 @@ export default function CustomerDetailPage() {
                         {projForm[cat.key].map((desc, index) => (
                           <div key={`${cat.key}-${index}`} className="flex items-center gap-2">
                             <Input
-                              placeholder={`${cat.label} detail ${index + 1}`}
+                              placeholder={`${cat.label} description ${index + 1}`}
                               value={desc}
                               onChange={(e) => updateOverviewItem(cat.key, index, e.target.value)}
                               className="bg-slate-50 dark:bg-slate-800 text-xs font-medium flex-1 h-9 rounded-xl"
@@ -660,17 +663,17 @@ export default function CustomerDetailPage() {
                 ))}
               </div>
 
-              {/* Payment Breakdown */}
+              {/* PAYMENT */}
               <div className="space-y-2.5 border-t border-slate-200/60 dark:border-slate-800 pt-4">
                 <div className="flex items-center justify-between">
                   <label className="text-xs font-extrabold uppercase text-slate-500 tracking-wider flex items-center gap-1.5">
-                    <Wallet className="h-3.5 w-3.5 text-emerald-500" /> Payment Components
+                    <Wallet className="h-3.5 w-3.5 text-emerald-500" /> PAYMENT
                   </label>
                   <button
                     type="button"
                     onClick={addPayment}
                     className="flex h-6 w-6 items-center justify-center rounded-full bg-blue-600 hover:bg-blue-700 text-white transition shadow-sm"
-                    title="Add payment component"
+                    title="Add payment row"
                   >
                     <Plus className="h-3.5 w-3.5" />
                   </button>
@@ -681,7 +684,7 @@ export default function CustomerDetailPage() {
                     {projForm.payments.map((row, index) => (
                       <div key={`payment-${index}`} className="flex items-center gap-2">
                         <Input
-                          placeholder="Description (e.g. Core App)"
+                          placeholder="Description"
                           value={row.description}
                           onChange={(e) => updatePayment(index, "description", e.target.value)}
                           className="bg-white dark:bg-slate-900 text-xs font-semibold flex-1 h-9 rounded-xl"
@@ -706,24 +709,24 @@ export default function CustomerDetailPage() {
                 )}
 
                 <div className="flex items-center justify-between rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 px-4 py-2.5">
-                  <span className="text-xs font-bold text-emerald-700 dark:text-emerald-300">Base Project Cost</span>
+                  <span className="text-xs font-bold text-emerald-700 dark:text-emerald-300">Project Cost</span>
                   <span className="text-sm font-black text-emerald-800 dark:text-emerald-200">
                     ₹{totalPayment.toLocaleString("en-IN")}
                   </span>
                 </div>
               </div>
 
-              {/* Project Timeline Breakdown */}
+              {/* PROJECT TIMELINE */}
               <div className="space-y-2.5 border-t border-slate-200/60 dark:border-slate-800 pt-4">
                 <div className="flex items-center justify-between">
                   <label className="text-xs font-extrabold uppercase text-slate-500 tracking-wider flex items-center gap-1.5">
-                    <Clock className="h-3.5 w-3.5 text-amber-500" /> Project Timeline Phases
+                    <Clock className="h-3.5 w-3.5 text-amber-500" /> PROJECT TIMELINE
                   </label>
                   <button
                     type="button"
                     onClick={addTimeline}
                     className="flex h-6 w-6 items-center justify-center rounded-full bg-blue-600 hover:bg-blue-700 text-white transition shadow-sm"
-                    title="Add timeline phase"
+                    title="Add timeline row"
                   >
                     <Plus className="h-3.5 w-3.5" />
                   </button>
@@ -734,7 +737,7 @@ export default function CustomerDetailPage() {
                     {projForm.timelines.map((row, index) => (
                       <div key={`timeline-${index}`} className="flex items-center gap-2">
                         <Input
-                          placeholder="Phase description"
+                          placeholder="Description"
                           value={row.description}
                           onChange={(e) => updateTimeline(index, "description", e.target.value)}
                           className="bg-white dark:bg-slate-900 text-xs font-semibold flex-1 h-9 rounded-xl"
@@ -766,17 +769,17 @@ export default function CustomerDetailPage() {
                 </div>
               </div>
 
-              {/* Payment Scheduled Milestones */}
+              {/* PAYMENT SCHEDULED */}
               <div className="space-y-2.5 border-t border-slate-200/60 dark:border-slate-800 pt-4">
                 <div className="flex items-center justify-between">
                   <label className="text-xs font-extrabold uppercase text-slate-500 tracking-wider flex items-center gap-1.5">
-                    <CalendarDays className="h-3.5 w-3.5 text-indigo-500" /> Payment Scheduled Installments
+                    <CalendarDays className="h-3.5 w-3.5 text-indigo-500" /> PAYMENT SCHEDULED
                   </label>
                   <button
                     type="button"
                     onClick={addSchedule}
                     className="flex h-6 w-6 items-center justify-center rounded-full bg-blue-600 hover:bg-blue-700 text-white transition shadow-sm"
-                    title="Add payment schedule"
+                    title="Add payment schedule row"
                   >
                     <Plus className="h-3.5 w-3.5" />
                   </button>
@@ -787,7 +790,7 @@ export default function CustomerDetailPage() {
                     {projForm.schedules.map((row, index) => (
                       <div key={`schedule-${index}`} className="flex items-center gap-2">
                         <Input
-                          placeholder="Milestone (e.g. 50% Advance)"
+                          placeholder="Description"
                           value={row.description}
                           onChange={(e) => updateSchedule(index, "description", e.target.value)}
                           className="bg-white dark:bg-slate-900 text-xs font-semibold flex-1 h-9 rounded-xl"
@@ -817,7 +820,7 @@ export default function CustomerDetailPage() {
 
             {/* Live summary */}
             <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-slate-200/80 bg-white p-3.5 dark:border-slate-800 dark:bg-slate-900">
-              <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 mr-1">Summary</span>
+              <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 mr-1">SUMMARY</span>
               <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 border border-emerald-200 dark:bg-emerald-950/40 dark:border-emerald-800 px-3 py-1 text-xs font-extrabold text-emerald-700 dark:text-emerald-300">
                 <Wallet className="h-3 w-3" /> ₹{totalPayment.toLocaleString("en-IN")}
               </span>
@@ -825,21 +828,25 @@ export default function CustomerDetailPage() {
                 <Layers className="h-3 w-3" />
                 {projForm.overviewWeb.filter((p) => p.trim()).length +
                   projForm.overviewApp.filter((p) => p.trim()).length +
-                  projForm.overviewAdmin.filter((p) => p.trim()).length} features
+                  projForm.overviewAdmin.filter((p) => p.trim()).length} overview
               </span>
               {projForm.timelines.length > 0 && (
                 <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-50 border border-amber-200 dark:bg-amber-950/40 dark:border-amber-800 px-3 py-1 text-xs font-extrabold text-amber-700 dark:text-amber-300">
-                  <Clock className="h-3 w-3" /> {projForm.timelines.length} timeline phase{projForm.timelines.length === 1 ? "" : "s"}
+                  <Clock className="h-3 w-3" /> {projForm.timelines.length} timeline{projForm.timelines.length === 1 ? "" : "s"}
                 </span>
               )}
             </div>
 
-            <div className="flex gap-2 pt-2">
-              <Button type="button" size="sm" onClick={handleAddProject} className="rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs">
-                Save Project Record
-              </Button>
-              <Button type="button" variant="ghost" size="sm" onClick={() => { setShowAddProj(false); setProjForm(emptyProjForm); setProjError(""); }} className="rounded-xl border border-slate-200 bg-white text-xs font-bold dark:border-slate-800 dark:bg-slate-900">
+            <div className="flex justify-end items-center gap-3 pt-2 border-t border-dashed border-slate-200 dark:border-slate-800">
+              <button
+                type="button"
+                onClick={() => { setShowAddProj(false); setProjForm(emptyProjForm); setProjError(""); }}
+                className="text-xs font-bold text-slate-600 dark:text-slate-400 hover:underline"
+              >
                 Cancel
+              </button>
+              <Button type="button" size="sm" onClick={handleAddProject} className="rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs">
+                Save Structural Record
               </Button>
             </div>
           </div>
@@ -856,7 +863,7 @@ export default function CustomerDetailPage() {
               const status = p.status || "Pending";
               const view = PROJECT_STATUS_VIEW[status] ?? PROJECT_STATUS_VIEW["Pending"];
               const pid = p.id || `proj-${index}`;
-              const expanded = !!expandedProjects[pid];
+              const expanded = expandedProjects[pid] ?? true;
               const isEstimationStage = status === "Pending" || status === "Rejected";
 
               const sec = (name: string) => ({
