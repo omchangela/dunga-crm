@@ -28,9 +28,9 @@ export default function EmployeeLoginPage() {
     <div className="flex min-h-screen items-center justify-center bg-[#f5f6fa] px-4">
       <div className="w-full max-w-sm">
 
-        <div className="mb-6 text-center">
-          <div className="mx-auto flex h-16 w-full items-center justify-center p-1">
-            <img src="/dunga_logo.png" alt="Dunga Technologies Logo" className="h-14 object-contain" />
+        <div className="mb-8 text-center">
+          <div className="mx-auto flex h-28 w-full items-center justify-center py-2 px-4">
+            <img src="/dunga_logo.png" alt="Dunga Technologies Logo" className="h-24 max-w-full object-contain" />
           </div>
         </div>
 

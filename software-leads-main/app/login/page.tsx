@@ -35,9 +35,9 @@ export default function LoginPage() {
     <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-[#0c1d4e] via-[#0e357a] to-[#0971fe] p-4">
       <div className="w-full max-w-md">
         <div className="rounded-2xl bg-white p-8 shadow-2xl">
-          <div className="mb-6 text-center">
-            <div className="mx-auto flex h-16 w-full items-center justify-center p-1">
-              <img src="/dunga_logo.png" alt="Dunga Technologies Logo" className="h-14 object-contain" />
+          <div className="mb-8 text-center">
+            <div className="mx-auto flex h-28 w-full items-center justify-center py-2 px-4">
+              <img src="/dunga_logo.png" alt="Dunga Technologies Logo" className="h-24 max-w-full object-contain" />
             </div>
           </div>
 
