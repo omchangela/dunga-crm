@@ -110,38 +110,35 @@ function renderEstimationQuotationPdf(doc: any, project: any) {
   const cardHeight = 58;
   doc.rect(45, y, 450, cardHeight).fillAndStroke('#f8fafc', '#cbd5e1');
 
-  // Left Column (Bounds: 55 to 260)
-  doc.fillColor(primaryTeal).fontSize(8.5).font('Helvetica-Bold').text('CLIENT NAME', 55, y + 8, { width: 80 });
-  doc.fillColor(darkText).fontSize(8.5).font('Helvetica-Bold').text(`:  ${customerName}`, 135, y + 8, { width: 125, height: 12, lineBreak: false, ellipsis: true });
+  // Left Column (Bounds: 55 to 245)
+  doc.fillColor(primaryTeal).fontSize(8.5).font('Helvetica-Bold').text('CLIENT NAME', 55, y + 8, { width: 75 });
+  doc.fillColor(darkText).fontSize(8.5).font('Helvetica-Bold').text(`:  ${customerName}`, 130, y + 8, { width: 115, height: 12, lineBreak: false, ellipsis: true });
 
-  doc.fillColor(primaryTeal).fontSize(8.5).font('Helvetica-Bold').text('PHONE NUMBER', 55, y + 24, { width: 80 });
-  doc.fillColor(darkText).fontSize(8.5).font('Helvetica').text(`:  ${phone}`, 135, y + 24, { width: 125, height: 12, lineBreak: false, ellipsis: true });
+  doc.fillColor(primaryTeal).fontSize(8.5).font('Helvetica-Bold').text('PHONE NUMBER', 55, y + 24, { width: 75 });
+  doc.fillColor(darkText).fontSize(8.5).font('Helvetica').text(`:  ${phone}`, 130, y + 24, { width: 115, height: 12, lineBreak: false, ellipsis: true });
 
-  doc.fillColor(primaryTeal).fontSize(8.5).font('Helvetica-Bold').text('LOCATION', 55, y + 40, { width: 80 });
-  doc.fillColor(darkText).fontSize(8.5).font('Helvetica').text(`:  ${location}`, 135, y + 40, { width: 125, height: 12, lineBreak: false, ellipsis: true });
+  doc.fillColor(primaryTeal).fontSize(8.5).font('Helvetica-Bold').text('LOCATION', 55, y + 40, { width: 75 });
+  doc.fillColor(darkText).fontSize(8.5).font('Helvetica').text(`:  ${location}`, 130, y + 40, { width: 115, height: 12, lineBreak: false, ellipsis: true });
 
-  // Right Column (Bounds: 270 to 490)
-  doc.fillColor(primaryTeal).fontSize(8.5).font('Helvetica-Bold').text('COMPANY NAME', 270, y + 8, { width: 85 });
-  doc.fillColor(darkText).fontSize(8.5).font('Helvetica').text(`:  ${companyName}`, 360, y + 8, { width: 130, height: 12, lineBreak: false, ellipsis: true });
+  // Right Column (Bounds: 255 to 490 - Expanded width to 155pt)
+  doc.fillColor(primaryTeal).fontSize(8.5).font('Helvetica-Bold').text('COMPANY NAME', 255, y + 8, { width: 75 });
+  doc.fillColor(darkText).fontSize(8.5).font('Helvetica').text(`:  ${companyName}`, 335, y + 8, { width: 155, height: 12, lineBreak: false, ellipsis: true });
 
-  doc.fillColor(primaryTeal).fontSize(8.5).font('Helvetica-Bold').text('EMAIL ADDRESS', 270, y + 24, { width: 85 });
-  doc.fillColor(darkText).fontSize(8.5).font('Helvetica').text(`:  ${email}`, 360, y + 24, { width: 130, height: 12, lineBreak: false, ellipsis: true });
+  doc.fillColor(primaryTeal).fontSize(8.5).font('Helvetica-Bold').text('EMAIL ADDRESS', 255, y + 24, { width: 75 });
+  doc.fillColor(darkText).fontSize(8.5).font('Helvetica').text(`:  ${email}`, 335, y + 24, { width: 155, height: 12, lineBreak: false, ellipsis: true });
 
-  doc.fillColor(primaryTeal).fontSize(8.5).font('Helvetica-Bold').text('SERVICE TYPE', 270, y + 40, { width: 85 });
-  doc.fillColor(darkText).fontSize(8.5).font('Helvetica').text(`:  ${project.serviceType || 'Software Development'}`, 360, y + 40, { width: 130, height: 12, lineBreak: false, ellipsis: true });
+  doc.fillColor(primaryTeal).fontSize(8.5).font('Helvetica-Bold').text('SERVICE TYPE', 255, y + 40, { width: 75 });
+  doc.fillColor(darkText).fontSize(8.5).font('Helvetica').text(`:  ${project.serviceType || 'Software Development'}`, 335, y + 40, { width: 155, height: 12, lineBreak: false, ellipsis: true });
 
   y += cardHeight + 10;
 
-  // Intro note with dynamic height calculation to prevent table header collision
+  // Intro note formatted in 1 clean text call with exact height calculation
   const introStr = `Thank you for considering Dunga Technologies for your ${project.serviceType || 'project'} requirements. Please find below the estimation for the proposed services.`;
   const introH = doc.heightOfString(introStr, { width: 450 });
 
-  doc.fillColor(darkText).fontSize(8.5).font('Helvetica');
-  doc.text('Thank you for considering ', 45, y, { continued: true });
-  doc.fillColor(accentOrange).font('Helvetica-Bold').text('Dunga Technologies ', { continued: true });
-  doc.fillColor(darkText).font('Helvetica').text(`for your ${project.serviceType || 'project'} requirements. Please find below the estimation for the proposed services.`);
+  doc.fillColor(darkText).fontSize(8.5).font('Helvetica').text(introStr, 45, y, { width: 450, align: 'left' });
   
-  y += introH + 10;
+  y += introH + 12; // Clean 12pt gap before table header bar
 
   // ── 2. SERVICES & COMMERCIAL COST TABLE ──────────────────────────────────
   const colX = [45, 80, 300, 360, 425];
@@ -250,23 +247,23 @@ function renderEstimationQuotationPdf(doc: any, project: any) {
   const deliveryTime = project.estimatedDeliveryTime || (project.deadline ? `${Math.ceil((new Date(project.deadline).getTime() - new Date().getTime()) / (1000 * 3600 * 24))} Days` : '30 - 45 Working Days');
   const supportPeriod = project.supportPeriod || '3 Months Included';
 
-  // Calculate dynamic card height to accommodate long support maintenance descriptions
-  const suppH = doc.heightOfString(supportPeriod, { width: 125 });
-  const timelineCardH = Math.max(45, 24 + suppH + 8);
+  // Calculate dynamic card height to accommodate multi-line support maintenance descriptions
+  const suppH = doc.heightOfString(`Support & Maintenance  :  ${supportPeriod}`, { width: 325 });
+  const timelineCardH = Math.max(54, 36 + suppH + 10);
 
   doc.rect(45, y, 450, timelineCardH).fillAndStroke('#fff7ed', '#fed7aa');
 
   doc.fillColor(accentOrange).fontSize(9).font('Helvetica-Bold').text('PROJECT TIMELINE & SUPPORT COVERAGE', 55, y + 8);
   
-  // Left Column: Delivery Time
-  doc.fillColor(darkText).fontSize(8.5).font('Helvetica-Bold').text('Estimated Delivery Time :', 55, y + 24, { width: 110 });
-  doc.fillColor(darkText).fontSize(8.5).font('Helvetica').text(deliveryTime, 168, y + 24, { width: 80 });
+  // Line 1: Delivery Time
+  doc.fillColor(primaryTeal).fontSize(8.5).font('Helvetica-Bold').text('Estimated Delivery Time', 55, y + 22, { width: 110 });
+  doc.fillColor(darkText).fontSize(8.5).font('Helvetica-Bold').text(`:  ${deliveryTime}`, 165, y + 22, { width: 100 });
 
-  // Right Column: Support & Maintenance
-  doc.fillColor(darkText).fontSize(8.5).font('Helvetica-Bold').text('Support & Maintenance  :', 255, y + 24, { width: 110 });
-  doc.fillColor(darkText).fontSize(8.5).font('Helvetica').text(supportPeriod, 368, y + 24, { width: 125 });
+  // Line 2: Support & Maintenance (Spans across width 325pt so long details fit cleanly)
+  doc.fillColor(primaryTeal).fontSize(8.5).font('Helvetica-Bold').text('Support & Maintenance', 55, y + 36, { width: 110 });
+  doc.fillColor(darkText).fontSize(8.5).font('Helvetica').text(`:  ${supportPeriod}`, 165, y + 36, { width: 325 });
 
-  y += timelineCardH + 12;
+  y += timelineCardH + 14;
 
   // ── 5. TERMS & CONDITIONS AND NOTE ───────────────────────────────────────
   doc.fillColor(primaryTeal).fontSize(9).font('Helvetica-Bold').text('TERMS & CONDITIONS', 45, y);
