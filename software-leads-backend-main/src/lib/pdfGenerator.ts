@@ -247,6 +247,16 @@ function renderEstimationQuotationPdf(doc: any, project: any) {
   const advanceAmount = Number(project.advancePayment || Math.round(finalTotal * 0.5));
   const balanceAmount = Math.max(0, finalTotal - advanceAmount);
 
+  const formatStageText = (stg: string) => {
+    if (!stg) return 'Scheduled';
+    if (stg.includes('Scheduled / ')) {
+      const raw = stg.replace('Scheduled / ', '').trim();
+      if (raw === 'Pending') return 'Due on Delivery';
+      return `Due: ${formatDate(raw)}`;
+    }
+    return stg;
+  };
+
   let paymentChunks: { title: string; amount: number; stage: string }[] = [];
 
   if (Array.isArray(project.payments) && project.payments.length > 0) {
@@ -261,9 +271,9 @@ function renderEstimationQuotationPdf(doc: any, project: any) {
     const chunk2 = Math.round(finalTotal * 0.25);
     const chunk3 = finalTotal - chunk1 - chunk2;
     paymentChunks = [
-      { title: 'Chunk 1: 50% Advance Payment (Booking & System Design)', amount: chunk1, stage: 'Due on Project Booking' },
+      { title: 'Chunk 1: 50% Advance Payment (Booking & System Design)', amount: chunk1, stage: 'Due on Booking' },
       { title: 'Chunk 2: 25% Mid Milestone Payment (UI/UX & Core API Delivery)', amount: chunk2, stage: 'On Phase 1 Completion' },
-      { title: 'Chunk 3: 25% Final Settlement (QA, Testing & Production Launch)', amount: chunk3, stage: 'Before Final Launch' },
+      { title: 'Chunk 3: 25% Final Settlement (QA, Testing & Launch)', amount: chunk3, stage: 'Before Final Launch' },
     ];
   }
 
@@ -273,24 +283,27 @@ function renderEstimationQuotationPdf(doc: any, project: any) {
 
   let chunkY = y + 20;
   paymentChunks.forEach((chk, idx) => {
-    doc.fillColor(darkText).fontSize(8).font('Helvetica-Bold').text(`${idx + 1}. ${chk.title}`, 55, chunkY, { width: 270, height: 14, lineBreak: false, ellipsis: true });
-    doc.fillColor(accentOrange).fontSize(8).font('Helvetica-Bold').text(`Rs. ${chk.amount.toLocaleString('en-IN')}`, 330, chunkY, { width: 70, align: 'right' });
-    doc.fillColor(mutedText).fontSize(7.5).font('Helvetica').text(`(${chk.stage})`, 405, chunkY, { width: 85, align: 'left' });
+    doc.fillColor(darkText).fontSize(8).font('Helvetica-Bold').text(`${idx + 1}. ${chk.title}`, 55, chunkY, { width: 250, height: 14, lineBreak: false, ellipsis: true });
+    doc.fillColor(accentOrange).fontSize(8).font('Helvetica-Bold').text(`Rs. ${chk.amount.toLocaleString('en-IN')}`, 310, chunkY, { width: 75, align: 'right' });
+    const stageStr = formatStageText(chk.stage);
+    doc.fillColor(mutedText).fontSize(7.5).font('Helvetica').text(`(${stageStr})`, 395, chunkY, { width: 95, align: 'right' });
     chunkY += 18;
   });
 
   y += chunksBoxH + 10;
 
   // ── 5. ACCEPTED PAYMENT MODES & BANK DETAILS ──────────────────────────────
-  ensureSpace(45);
-  const paymentModeCardH = 40;
+  ensureSpace(50);
+  const paymentModeCardH = 46;
   doc.rect(45, y, 450, paymentModeCardH).fillAndStroke('#f8fafc', '#cbd5e1');
 
-  doc.fillColor(primaryTeal).fontSize(8.5).font('Helvetica-Bold').text('ACCEPTED PAYMENT MODES :', 55, y + 8);
-  doc.fillColor(darkText).fontSize(8).font('Helvetica').text('Bank Transfer (NEFT / RTGS)  |  UPI (GPay / PhonePe / Paytm)  |  Cheque / Net Banking', 190, y + 8, { width: 300 });
+  // Line 1: Payment Modes
+  doc.fillColor(primaryTeal).fontSize(8.5).font('Helvetica-Bold').text('ACCEPTED PAYMENT MODES', 55, y + 8, { width: 135 });
+  doc.fillColor(darkText).fontSize(8).font('Helvetica').text(':  Bank Transfer (NEFT/RTGS), UPI (GPay/PhonePe/Paytm) & Net Banking', 190, y + 8, { width: 300, height: 12, lineBreak: false, ellipsis: true });
 
-  doc.fillColor(primaryTeal).fontSize(8.5).font('Helvetica-Bold').text('CONTACT FOR INVOICING :', 55, y + 24);
-  doc.fillColor(mutedText).fontSize(8).font('Helvetica').text('Sales@dungatechnologies.com  |  Phone: +91 8121923831', 190, y + 24, { width: 300 });
+  // Line 2: Invoicing Contact
+  doc.fillColor(primaryTeal).fontSize(8.5).font('Helvetica-Bold').text('CONTACT FOR INVOICING', 55, y + 26, { width: 135 });
+  doc.fillColor(mutedText).fontSize(8).font('Helvetica').text(':  Sales@dungatechnologies.com  |  Phone: +91 8121923831', 190, y + 26, { width: 300, height: 12, lineBreak: false, ellipsis: true });
 
   y += paymentModeCardH + 10;
 
