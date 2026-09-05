@@ -755,6 +755,10 @@ export const projectsApi = {
   // Poll the async job status for a project (contract) PDF.
   getProjectPdfStatus: (id: string, jobId: string) =>
     request<any>(`/api/projects/${id}/project-pdf/status/${jobId}`),
+
+  // Get a signed download URL for a Payment Receipt PDF.
+  getReceiptPdf: (id: string, payIndex: number = 0) =>
+    request<any>(`/api/projects/${id}/receipt-pdf?payIndex=${payIndex}`),
 };
 
 // ── Adapters: backend shape -> internal (display) shape the UI renders ──────────

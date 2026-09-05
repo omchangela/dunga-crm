@@ -58,10 +58,13 @@ export function SidebarNav({ alwaysExpanded = false }: SidebarNavProps) {
       {/* Logo */}
       <div className="flex h-16 shrink-0 items-center border-b border-white/10 px-3">
         {isOpen ? (
-          <img src="/loanlogo.png" alt="SoftLeads" className="h-40 max-w-[160px] object-contain" />
+          <div className="flex items-center gap-2">
+            <img src="/dunga_logo.png" alt="Dunga Technologies" className="h-9 w-auto object-contain" />
+            <span className="text-xs font-extrabold text-white tracking-tight">DUNGA TECH</span>
+          </div>
         ) : (
           <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#0971fe]">
-            <span className="text-sm font-extrabold text-white">S</span>
+            <span className="text-sm font-extrabold text-white">D</span>
           </div>
         )}
       </div>

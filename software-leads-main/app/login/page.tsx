@@ -35,9 +35,12 @@ export default function LoginPage() {
     <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-[#0c1d4e] via-[#0e357a] to-[#0971fe] p-4">
       <div className="w-full max-w-md">
         <div className="rounded-2xl bg-white p-8 shadow-2xl">
-          <div className="mb-8 text-center">
-            <h1 className="text-3xl font-bold text-[#1a2035]">SoftLeads</h1>
-            <p className="mt-2 text-sm text-[#8094ae]">Sign in to your account</p>
+          <div className="mb-8 text-center space-y-3">
+            <div className="mx-auto flex h-16 w-full items-center justify-center p-1">
+              <img src="/dunga_logo.png" alt="Dunga Technologies Logo" className="h-14 object-contain" />
+            </div>
+            <h1 className="text-2xl font-black text-[#1a2035] tracking-tight">Dunga Technologies</h1>
+            <p className="text-xs font-semibold text-[#8094ae]">Sign in to Admin Management Portal</p>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-4">

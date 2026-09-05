@@ -14,7 +14,8 @@ import {
     downloadPdf,
     generateProjectPdfController,
     downloadProjectPdf,
-    getPdfJobStatus
+    getPdfJobStatus,
+    getPaymentReceiptPdf
 } from '../controllers/projects'
 
 const router = Router({ mergeParams: true })
@@ -36,6 +37,7 @@ router.post('/:id/pdf',       generatePdf)
 router.get('/:id/pdf',        downloadPdf)
 router.post('/:id/project-pdf',  generateProjectPdfController)
 router.get('/:id/project-pdf',   downloadProjectPdf)
+router.get('/:id/receipt-pdf',   getPaymentReceiptPdf)
 router.get('/:id/pdf/status/:jobId',          getPdfJobStatus)
 router.get('/:id/project-pdf/status/:jobId',  getPdfJobStatus)
 

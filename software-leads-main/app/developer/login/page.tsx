@@ -34,12 +34,12 @@ export default function DeveloperLoginPage() {
     <div className="flex min-h-screen items-center justify-center bg-[#f5f6fa] px-4">
       <div className="w-full max-w-sm">
 
-        <div className="mb-8 text-center">
-          <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-teal-600 shadow-lg">
-            <span className="text-2xl font-extrabold text-white">D</span>
+        <div className="mb-8 text-center space-y-3">
+          <div className="mx-auto flex h-16 w-full items-center justify-center p-1">
+            <img src="/dunga_logo.png" alt="Dunga Technologies Logo" className="h-14 object-contain" />
           </div>
-          <h1 className="text-xl font-bold text-[#1a2035]">Developer Portal</h1>
-          <p className="mt-1 text-sm text-[#8094ae]">Sign in to view your projects and tasks</p>
+          <h1 className="text-xl font-black text-[#1a2035] tracking-tight">Dunga Technologies — Developer Portal</h1>
+          <p className="text-xs font-semibold text-[#8094ae]">Sign in to view engineering delivery tasks</p>
         </div>
 
         <div className="rounded-2xl border border-[#e5e9f2] bg-white p-8 shadow-sm">

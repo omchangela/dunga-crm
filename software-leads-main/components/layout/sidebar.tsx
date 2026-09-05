@@ -40,12 +40,13 @@ export function Sidebar({ onClose }: SidebarProps) {
     <div className="flex h-full flex-col bg-sidebar">
       {/* Header */}
       <div className="flex h-16 items-center justify-between px-4 border-b border-white/10">
-        <div className="flex items-center">
+        <div className="flex items-center gap-2">
           <img
-            src="/loanlogo.png"
-            alt="SoftLeads Logo"
-            className="h-40 w-220 object-contain"
+            src="/dunga_logo.png"
+            alt="Dunga Technologies Logo"
+            className="h-10 w-auto object-contain"
           />
+          <span className="text-sm font-black text-white tracking-tight">Dunga Tech</span>
         </div>
         {onClose && (
           <button

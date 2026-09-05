@@ -52,13 +52,14 @@ export function TopNav({ onMobileMenuOpen }: TopNavProps) {
           <Menu className="h-5 w-5" />
         </button>
 
-        {/* Logo (Hidden on mobile because it's in the sidebar, visible on desktop) */}
-        <div className="hidden lg:block">
+        {/* Logo */}
+        <div className="hidden lg:flex items-center gap-2">
           <img
-            src="/loanlogo.png"
-            alt="SoftLeads"
-            className="h-22 w-auto object-contain"
+            src="/dunga_logo.png"
+            alt="Dunga Technologies"
+            className="h-9 w-auto object-contain"
           />
+          <span className="text-sm font-black text-slate-900 dark:text-white tracking-tight">Dunga Technologies</span>
         </div>
 
         {/* Vertical Divider (Desktop only) */}

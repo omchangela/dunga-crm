@@ -29,12 +29,12 @@ export default function EmployeeLoginPage() {
       <div className="w-full max-w-sm">
 
         {/* Logo / header */}
-        <div className="mb-8 text-center">
-          <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-[#0971fe] shadow-lg">
-            <span className="text-2xl font-extrabold text-white">E</span>
+        <div className="mb-8 text-center space-y-3">
+          <div className="mx-auto flex h-16 w-full items-center justify-center p-1">
+            <img src="/dunga_logo.png" alt="Dunga Technologies Logo" className="h-14 object-contain" />
           </div>
-          <h1 className="text-xl font-bold text-[#1a2035]">Employee Portal</h1>
-          <p className="mt-1 text-sm text-[#8094ae]">Sign in to view your leads and tasks</p>
+          <h1 className="text-xl font-black text-[#1a2035] tracking-tight">Dunga Technologies — Employee Portal</h1>
+          <p className="text-xs font-semibold text-[#8094ae]">Sign in to manage assigned leads and tasks</p>
         </div>
 
         {/* Card */}

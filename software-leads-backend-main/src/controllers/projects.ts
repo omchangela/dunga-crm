@@ -582,16 +582,25 @@ export const removeFeature = async (req: Request, res: Response) => {
     })
 }
 
-import { pdfQueue } from '../lib/queues/pdfQueue'
+import {
+  buildEstimationPdfBuffer,
+  buildProjectContractPdfBuffer,
+  buildPaymentReceiptPdfBuffer
+} from '../lib/pdfGenerator'
 
-// GENERATE estimation PDF (queued)
+// GENERATE estimation PDF (Instant / Synchronous)
 export const generatePdf = async (req: Request, res: Response) => {
-
     const id = req.params.id as string
 
     const project = await prisma.project.findUnique({
-        where:  { id },
-        select: { id: true, projectName: true }
+        where: { id },
+        include: {
+            customer: {
+                select: {
+                    id: true, fullName: true, phone: true, email: true, applicationNumber: true
+                }
+            }
+        }
     })
 
     if (!project) {
@@ -599,109 +608,161 @@ export const generatePdf = async (req: Request, res: Response) => {
         return
     }
 
-    // add to queue
-    const job = await pdfQueue.add(
-        `estimation-${id}`,
-        {
-            projectId: id,
-            type:      'ESTIMATION'
-        },
-        {
-            jobId: `estimation-${id}-${Date.now()}`
+    try {
+        const pdfBuffer = await buildEstimationPdfBuffer(project)
+        const base64Data = pdfBuffer.toString('base64')
+        const dataUrl = `data:application/pdf;base64,${base64Data}`
+
+        const sanitizedName = (project.projectName || 'project').replace(/[^a-zA-Z0-9]/g, '_').substring(0, 40)
+        const fileName = `${sanitizedName}_estimation_${Date.now()}.pdf`
+        const filePath = `estimation/${project.id}/${fileName}`
+
+        let publicUrl = dataUrl
+        try {
+            const { error: uploadError } = await supabase.storage
+                .from(BUCKET)
+                .upload(filePath, pdfBuffer, { contentType: 'application/pdf', upsert: true })
+
+            if (!uploadError) {
+                const { data: urlData } = supabase.storage.from(BUCKET).getPublicUrl(filePath)
+                if (urlData?.publicUrl) publicUrl = urlData.publicUrl
+            }
+        } catch (e) {
+            console.log('Supabase upload skipped, using base64 data URL')
         }
-    )
 
-    res.status(202).json({
-        success: true,
-        message: 'PDF generation queued',
-        data: {
-            jobId:       job.id,
-            projectId:   id,
-            projectName: project.projectName,
-            status:      'queued',
-            pollUrl:     `/api/projects/${id}/pdf/status/${job.id}`
-        }
-    })
-}
-
-// GENERATE project PDF (queued)
-export const generateProjectPdfController = async (req: Request, res: Response) => {
-
-    const id = req.params.id as string
-
-    const project = await prisma.project.findUnique({
-        where:  { id },
-        select: { id: true, projectName: true }
-    })
-
-    if (!project) {
-        res.status(404).json({ success: false, message: 'Project not found' })
-        return
-    }
-
-    const job = await pdfQueue.add(
-        `project-pdf-${id}`,
-        {
-            projectId: id,
-            type:      'PROJECT'
-        },
-        {
-            jobId: `project-${id}-${Date.now()}`
-        }
-    )
-
-    res.status(202).json({
-        success: true,
-        message: 'Project PDF generation queued',
-        data: {
-            jobId:       job.id,
-            projectId:   id,
-            projectName: project.projectName,
-            status:      'queued',
-            pollUrl:     `/api/projects/${id}/pdf/status/${job.id}`
-        }
-    })
-}
-
-// GET PDF job status
-export const getPdfJobStatus = async (req: Request, res: Response) => {
-
-    const jobId = req.params.jobId as string
-
-    const job = await pdfQueue.getJob(jobId)
-
-    if (!job) {
-        res.status(404).json({
-            success: false,
-            message: 'Job not found or expired'
+        const updated = await prisma.project.update({
+            where: { id },
+            data: {
+                estimationPdfUrl: publicUrl,
+                estimationPdfAt: new Date()
+            }
         })
+
+        if (project.customer?.email) {
+            sendEstimationEmail({
+                email: project.customer.email,
+                customerName: project.customer.fullName,
+                projectName: project.projectName,
+                pdfBuffer,
+                fileName
+            }).catch(console.error)
+        }
+
+        res.status(200).json({
+            success: true,
+            message: 'PDF generated successfully',
+            data: {
+                pdfUrl: publicUrl,
+                downloadUrl: dataUrl,
+                signedUrl: dataUrl,
+                fileName,
+                generatedAt: updated.estimationPdfAt
+            }
+        })
+    } catch (err: any) {
+        console.error('PDF Generation Error:', err)
+        res.status(500).json({ success: false, message: 'Failed to generate PDF', error: err?.message })
+    }
+}
+
+// GENERATE project contract PDF (Instant / Synchronous)
+export const generateProjectPdfController = async (req: Request, res: Response) => {
+    const id = req.params.id as string
+
+    const project = await prisma.project.findUnique({
+        where: { id },
+        include: {
+            customer: {
+                select: {
+                    id: true, fullName: true, phone: true, email: true, applicationNumber: true
+                }
+            }
+        }
+    })
+
+    if (!project) {
+        res.status(404).json({ success: false, message: 'Project not found' })
         return
     }
 
-    const state    = await job.getState()
-    const progress = job.progress
-    const result   = job.returnvalue
-    const failErr  = job.failedReason
-
-    const messages: Record<string, string> = {
-        'waiting':    'Job queued, waiting to start...',
-        'active':     getProgressMessage(Number(progress)),
-        'completed':  'PDF ready',
-        'failed':     `Failed: ${failErr}`,
-        'delayed':    'Retrying...',
-        'unknown':    'Unknown status'
+    let developers: any[] = []
+    if (project.developers && project.developers.length > 0) {
+        developers = await prisma.developer.findMany({
+            where: { id: { in: project.developers } }
+        })
     }
+
+    try {
+        const pdfBuffer = await buildProjectContractPdfBuffer(project, developers)
+        const base64Data = pdfBuffer.toString('base64')
+        const dataUrl = `data:application/pdf;base64,${base64Data}`
+
+        const sanitizedName = (project.projectName || 'project').replace(/[^a-zA-Z0-9]/g, '_').substring(0, 40)
+        const fileName = `${sanitizedName}_contract_${Date.now()}.pdf`
+        const filePath = `project/${project.id}/${fileName}`
+
+        let publicUrl = dataUrl
+        try {
+            const { error: uploadError } = await supabase.storage
+                .from(BUCKET)
+                .upload(filePath, pdfBuffer, { contentType: 'application/pdf', upsert: true })
+
+            if (!uploadError) {
+                const { data: urlData } = supabase.storage.from(BUCKET).getPublicUrl(filePath)
+                if (urlData?.publicUrl) publicUrl = urlData.publicUrl
+            }
+        } catch (e) {
+            console.log('Supabase upload skipped, using base64 data URL')
+        }
+
+        const updated = await prisma.project.update({
+            where: { id },
+            data: {
+                projectPdfUrl: publicUrl,
+                projectPdfAt: new Date()
+            }
+        })
+
+        if (project.customer?.email) {
+            sendProjectPdfEmail({
+                email: project.customer.email,
+                customerName: project.customer.fullName,
+                projectName: project.projectName,
+                pdfBuffer,
+                fileName
+            }).catch(console.error)
+        }
+
+        res.status(200).json({
+            success: true,
+            message: 'Project Contract PDF generated successfully',
+            data: {
+                pdfUrl: publicUrl,
+                downloadUrl: dataUrl,
+                signedUrl: dataUrl,
+                fileName,
+                generatedAt: updated.projectPdfAt
+            }
+        })
+    } catch (err: any) {
+        console.error('Project PDF Generation Error:', err)
+        res.status(500).json({ success: false, message: 'Failed to generate project PDF', error: err?.message })
+    }
+}
+
+// GET PDF job status (instant completion compatibility)
+export const getPdfJobStatus = async (req: Request, res: Response) => {
+    const id = req.params.id || req.params.jobId
 
     res.status(200).json({
         success: true,
         data: {
-            jobId,
-            state,
-            progress,
-            message:   messages[state] || 'Processing...',
-            attempts:  job.attemptsMade,
-            result:    state === 'completed' ? result : null,
-            error:     state === 'failed'    ? failErr : null
+            jobId: req.params.jobId,
+            state: 'completed',
+            progress: 100,
+            message: 'PDF ready',
+            result: { downloadUrl: `/api/projects/${id}/pdf` }
         }
     })
 }
@@ -859,13 +920,19 @@ const getProgressMessage = (progress: number): string => {
 //     }
 // }
 
-// DOWNLOAD PDF — returns signed URL for download
+// DOWNLOAD Estimation PDF
 export const downloadPdf = async (req: Request, res: Response) => {
-
     const id = req.params.id as string
 
     const project = await prisma.project.findUnique({
-        where: { id }
+        where: { id },
+        include: {
+            customer: {
+                select: {
+                    id: true, fullName: true, phone: true, email: true, applicationNumber: true
+                }
+            }
+        }
     })
 
     if (!project) {
@@ -873,258 +940,38 @@ export const downloadPdf = async (req: Request, res: Response) => {
         return
     }
 
-    if (!project.estimationPdfUrl) {
-        res.status(404).json({
-            success: false,
-            message: 'No PDF generated yet for this project'
+    try {
+        const pdfBuffer = await buildEstimationPdfBuffer(project)
+        const base64Data = pdfBuffer.toString('base64')
+        const dataUrl = `data:application/pdf;base64,${base64Data}`
+
+        res.status(200).json({
+            success: true,
+            data: {
+                downloadUrl: dataUrl,
+                signedUrl: dataUrl,
+                fileName: `${(project.projectName || 'project').replace(/[^a-zA-Z0-9]/g, '_')}_estimation.pdf`,
+                expiresIn: '1 hour'
+            }
         })
-        return
+    } catch (err: any) {
+        res.status(500).json({ success: false, message: 'Failed to generate download URL', error: err?.message })
     }
-
-    // extract path from public URL
-    const url        = new URL(project.estimationPdfUrl)
-    const pathParts  = url.pathname.split(`/object/public/${BUCKET}/`)
-    const filePath: string   = pathParts[1] || ''
-
-    if (!filePath) {
-        res.status(500).json({
-            success: false,
-            message: 'Invalid PDF path'
-        })
-        return
-    }
-
-    // generate signed URL (1 hour validity)
-    const { data, error } = await supabase.storage
-        .from(BUCKET)
-        .createSignedUrl(filePath as string, 3600)
-
-    if (error) {
-        res.status(500).json({
-            success: false,
-            message: 'Failed to generate download URL',
-            error:   error.message
-        })
-        return
-    }
-
-    res.status(200).json({
-        success: true,
-        data: {
-            downloadUrl: data.signedUrl,
-            fileName:    filePath.split('/').pop(),
-            expiresIn:   '1 hour'
-        }
-    })
 }
 
-
-// // GENERATE project PDF (with cost, schedule, team)
-// export const generateProjectPdfController = async (
-//     req: Request,
-//     res: Response
-// ) => {
-
-//     const id = req.params.id as string
-
-//     const project = await prisma.project.findUnique({
-//         where: { id },
-//         include: {
-//             customer: {
-//                 select: {
-//                     id: true,
-//                     fullName: true,
-//                     phone: true,
-//                     email: true,
-//                     applicationNumber: true
-//                 }
-//             }
-//         }
-//     })
-
-//     if (!project) {
-//         res.status(404).json({
-//             success: false,
-//             message: 'Project not found'
-//         })
-//         return
-//     }
-
-//     let developers: any[] = []
-
-//     if (project.developers?.length > 0) {
-//         developers = await prisma.developer.findMany({
-//             where: {
-//                 id: {
-//                     in: project.developers
-//                 }
-//             }
-//         })
-//     }
-
-//     const sanitizedName = project.projectName
-//         .replace(/[^a-zA-Z0-9]/g, '_')
-//         .substring(0, 40)
-
-//     const timestamp = Date.now()
-
-//     const fileName =
-//         `${sanitizedName}_project_${timestamp}.pdf`
-
-//     const filePath =
-//         `project/${project.id}/${fileName}`
-
-//     try {
-
-//         // Generate PDF
-//         const pdfBuffer = await generateProjectPdf(
-//             project,
-//             developers
-//         )
-
-//         // Upload to Supabase
-//         const { error: uploadError } =
-//             await supabase.storage
-//                 .from(BUCKET)
-//                 .upload(filePath, pdfBuffer, {
-//                     contentType: 'application/pdf',
-//                     upsert: false
-//                 })
-
-//         if (uploadError) {
-
-//             console.error(
-//                 'Project PDF upload error:',
-//                 uploadError
-//             )
-
-//             res.status(500).json({
-//                 success: false,
-//                 message: 'Failed to upload PDF',
-//                 error: uploadError.message
-//             })
-
-//             return
-//         }
-
-//         // Public URL
-//         const { data: urlData } =
-//             supabase.storage
-//                 .from(BUCKET)
-//                 .getPublicUrl(filePath)
-
-//         // Signed URL
-//         const {
-//             data: signedData,
-//             error: signedError
-//         } = await supabase.storage
-//             .from(BUCKET)
-//             .createSignedUrl(filePath, 3600)
-
-//         if (signedError) {
-//             console.error(
-//                 'Signed URL error:',
-//                 signedError
-//             )
-//         }
-
-//         // Save URL in DB
-//         const updated = await prisma.project.update({
-//             where: {
-//                 id
-//             },
-//             data: {
-//                 projectPdfUrl: urlData.publicUrl,
-//                 projectPdfAt: new Date()
-//             }
-//         })
-
-//         // Send Email
-//         let emailSent = false
-
-//         console.log(
-//             'Customer:',
-//             project.customer
-//         )
-
-//         if (project.customer?.email) {
-
-//             console.log(
-//                 'Sending Project PDF Email...'
-//             )
-
-//             try {
-
-//                 await sendProjectPdfEmail({
-//                     email: project.customer.email,
-//                     customerName:
-//                         project.customer.fullName,
-//                     projectName:
-//                         project.projectName,
-//                     pdfBuffer,
-//                     fileName
-//                 })
-
-//                 emailSent = true
-
-//                 console.log(
-//                     'Project PDF Email Sent'
-//                 )
-
-//             } catch (mailError) {
-
-//                 console.error(
-//                     'Project PDF Email Failed:',
-//                     mailError
-//                 )
-//             }
-
-//         } else {
-
-//             console.log(
-//                 'Customer email not found'
-//             )
-//         }
-
-//         res.status(200).json({
-//             success: true,
-//             message: emailSent
-//                 ? 'Project PDF generated and emailed successfully'
-//                 : 'Project PDF generated successfully',
-//             data: {
-//                 pdfUrl: urlData.publicUrl,
-//                 signedUrl:
-//                     signedData?.signedUrl,
-//                 fileName,
-//                 generatedAt:
-//                     updated.projectPdfAt,
-//                 emailSent
-//             }
-//         })
-
-//     } catch (err: any) {
-
-//         console.error(
-//             'Project PDF generation error:',
-//             err
-//         )
-
-//         res.status(500).json({
-//             success: false,
-//             message:
-//                 'Failed to generate project PDF',
-//             error: err.message
-//         })
-//     }
-// }
-
-// DOWNLOAD project PDF
+// DOWNLOAD Project PDF
 export const downloadProjectPdf = async (req: Request, res: Response) => {
-
     const id = req.params.id as string
 
     const project = await prisma.project.findUnique({
-        where: { id }
+        where: { id },
+        include: {
+            customer: {
+                select: {
+                    id: true, fullName: true, phone: true, email: true, applicationNumber: true
+                }
+            }
+        }
     })
 
     if (!project) {
@@ -1132,45 +979,89 @@ export const downloadProjectPdf = async (req: Request, res: Response) => {
         return
     }
 
-    if (!project.projectPdfUrl) {
-        res.status(404).json({
-            success: false,
-            message: 'No project PDF generated yet'
+    let developers: any[] = []
+    if (project.developers && project.developers.length > 0) {
+        developers = await prisma.developer.findMany({
+            where: { id: { in: project.developers } }
         })
-        return
     }
 
-    const url       = new URL(project.projectPdfUrl)
-    const pathParts = url.pathname.split(`/object/public/${BUCKET}/`)
-    const filePath  = (pathParts[1] || '') as string
+    try {
+        const pdfBuffer = await buildProjectContractPdfBuffer(project, developers)
+        const base64Data = pdfBuffer.toString('base64')
+        const dataUrl = `data:application/pdf;base64,${base64Data}`
 
-    if (!filePath) {
-        res.status(500).json({
-            success: false,
-            message: 'Invalid PDF path'
+        res.status(200).json({
+            success: true,
+            data: {
+                downloadUrl: dataUrl,
+                signedUrl: dataUrl,
+                fileName: `${(project.projectName || 'project').replace(/[^a-zA-Z0-9]/g, '_')}_contract.pdf`,
+                expiresIn: '1 hour'
+            }
         })
-        return
+    } catch (err: any) {
+        res.status(500).json({ success: false, message: 'Failed to generate download URL', error: err?.message })
     }
+}
 
-    const { data, error } = await supabase.storage
-        .from(BUCKET)
-        .createSignedUrl(filePath as string, 3600)
+// GENERATE & DOWNLOAD PAYMENT RECEIPT PDF
+export const getPaymentReceiptPdf = async (req: Request, res: Response) => {
+    const id = req.params.id as string
+    const payIndex = parseInt(String(req.query.payIndex || '0'))
 
-    if (error) {
-        res.status(500).json({
-            success: false,
-            message: 'Failed to generate download URL',
-            error:   error.message
-        })
-        return
-    }
-
-    res.status(200).json({
-        success: true,
-        data: {
-            downloadUrl: data.signedUrl,
-            fileName:    filePath.split('/').pop(),
-            expiresIn:   '1 hour'
+    const project = await prisma.project.findUnique({
+        where: { id },
+        include: {
+            customer: true
         }
     })
+
+    if (!project) {
+        res.status(404).json({ success: false, message: 'Project not found' })
+        return
+    }
+
+    const payments = (project.payments as any[]) || []
+    const selectedPay = payments[payIndex] || payments[0] || { description: 'Project Payment', amount: project.budget }
+
+    const costHistory = (project.costHistory as any[]) || []
+    const totalBudget = calculateTotal(project.budget, costHistory)
+
+    const totalPaid = payments.reduce((sum, p) => sum + (parseFloat(p.amount) || 0), 0)
+    const remainingBalance = Math.max(0, totalBudget - totalPaid)
+
+    const receiptNo = `REC-${new Date().toISOString().slice(0,10).replace(/-/g,'')}-${(project.id || '').substring(0,4).toUpperCase()}-${payIndex + 1}`
+
+    try {
+        const pdfBuffer = await buildPaymentReceiptPdfBuffer({
+            receiptNo,
+            date: project.updatedAt || project.createdAt,
+            customerName: project.customer?.fullName || 'Customer',
+            customerPhone: project.customer?.phone || undefined,
+            customerEmail: project.customer?.email || undefined,
+            applicationNumber: project.customer?.applicationNumber,
+            projectName: project.projectName,
+            paymentDescription: selectedPay.description || `Payment Item #${payIndex + 1}`,
+            amountPaid: parseFloat(selectedPay.amount) || totalPaid || project.budget,
+            totalBudget,
+            totalPaid,
+            remainingBalance
+        })
+
+        const base64Data = pdfBuffer.toString('base64')
+        const dataUrl = `data:application/pdf;base64,${base64Data}`
+
+        res.status(200).json({
+            success: true,
+            data: {
+                downloadUrl: dataUrl,
+                signedUrl: dataUrl,
+                fileName: `receipt_${receiptNo}.pdf`,
+                receiptNo
+            }
+        })
+    } catch (err: any) {
+        res.status(500).json({ success: false, message: 'Failed to generate receipt PDF', error: err?.message })
+    }
 }

@@ -260,11 +260,22 @@ export default function CustomerDetailPage() {
       const res = kind === "estimation"
         ? await projectsApi.getPdf(projectId)
         : await projectsApi.getProjectPdf(projectId);
-      const url = res?.data?.downloadUrl ?? res?.data?.signedUrl;
+      const url = res?.data?.downloadUrl ?? res?.data?.signedUrl ?? res?.data?.pdfUrl;
       if (url) window.open(url, "_blank", "noopener,noreferrer");
       else showToast("PDF not available.");
     } catch (err: any) {
       showToast(err?.message ?? "Failed to open PDF.");
+    }
+  }
+
+  async function handleDownloadReceiptPdf(projectId: string, payIndex: number) {
+    try {
+      const res = await projectsApi.getReceiptPdf(projectId, payIndex);
+      const url = res?.data?.downloadUrl ?? res?.data?.signedUrl;
+      if (url) window.open(url, "_blank", "noopener,noreferrer");
+      else showToast("Failed to generate payment receipt PDF.");
+    } catch (err: any) {
+      showToast(err?.message ?? "Failed to generate receipt PDF.");
     }
   }
 
@@ -942,8 +953,18 @@ export default function CustomerDetailPage() {
                           <div className="grid gap-2 sm:grid-cols-2">
                             {p.payments.map((row: PaymentItem, i: number) => (
                               <div key={i} className="rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 px-3 py-2 flex items-center justify-between gap-2">
-                                <span className="text-xs font-bold text-emerald-800 dark:text-emerald-200 truncate">{row.description || "—"}</span>
-                                <span className="text-xs font-extrabold text-emerald-700 dark:text-emerald-300 shrink-0">₹{Number(row.amount || 0).toLocaleString("en-IN")}</span>
+                                <span className="text-xs font-bold text-emerald-800 dark:text-emerald-200 truncate">{row.description || "Payment"}</span>
+                                <div className="flex items-center gap-2 shrink-0">
+                                  <span className="text-xs font-extrabold text-emerald-700 dark:text-emerald-300">₹{Number(row.amount || 0).toLocaleString("en-IN")}</span>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleDownloadReceiptPdf(p.id, i)}
+                                    className="inline-flex items-center gap-1 rounded-lg border border-emerald-300 bg-white px-2 py-0.5 text-[10px] font-bold text-emerald-700 hover:bg-emerald-100 dark:bg-emerald-900 dark:text-emerald-200 transition"
+                                    title="Download Payment Receipt PDF"
+                                  >
+                                    <FileText className="h-3 w-3" /> Receipt
+                                  </button>
+                                </div>
                               </div>
                             ))}
                           </div>

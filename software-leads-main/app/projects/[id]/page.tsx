@@ -241,54 +241,48 @@ export default function ProjectDetailPage() {
 
   async function handleProjectPdf() {
     if (!project) return;
-    const busy = projectPdfJob?.state === "queued" || projectPdfJob?.state === "active" || projectPdfJob?.state === "waiting";
-    if (busy) return;
     try {
       const res = await projectsApi.generateProjectPdf(project.id);
-      const jobId = res?.data?.jobId;
-      if (!jobId) { showToast("Failed to queue PDF generation."); return; }
-      setProjectPdfJob({ jobId, state: "queued", progress: 0, message: "Queued…", result: null });
-      if (projectPdfIntervalRef.current) clearInterval(projectPdfIntervalRef.current);
-      projectPdfIntervalRef.current = setInterval(async () => {
-        try {
-          const status = await projectsApi.getProjectPdfStatus(project.id, jobId);
-          const d = status?.data ?? status;
-          setProjectPdfJob({ jobId, state: d.state, progress: d.progress ?? 0, message: d.message ?? "", result: d.result ?? null });
-          if (d.state === "completed") {
-            clearInterval(projectPdfIntervalRef.current!);
-            projectPdfIntervalRef.current = null;
-            showToast("Project PDF generated");
-            await load();
-            const signedUrl = d.result?.signedUrl ?? d.result?.downloadUrl;
-            if (signedUrl) setViewer({ url: signedUrl, title: `${project.projectName || "Project"} — Project PDF` });
-            setProjectPdfJob(null);
-          }
-          if (d.state === "failed") {
-            clearInterval(projectPdfIntervalRef.current!);
-            projectPdfIntervalRef.current = null;
-            showToast(d.error || "PDF generation failed");
-            setProjectPdfJob((prev) => prev ? { ...prev, state: "failed" } : null);
-          }
-        } catch {}
-      }, 2000);
+      const url = res?.data?.downloadUrl ?? res?.data?.signedUrl ?? res?.data?.pdfUrl;
+      if (url) {
+        setViewer({ url, title: `${project.projectName || "Project"} — Master Contract PDF` });
+        showToast("Project Contract PDF ready");
+        await load();
+      } else {
+        showToast("Failed to generate project PDF.");
+      }
     } catch (err: any) {
       showToast(err?.message ?? "Failed to generate project PDF.");
     }
   }
 
   async function handleViewProjectPdf() {
-    if (!project || !project.projectPdfUrl) return;
+    if (!project) return;
     try {
       const dl = await projectsApi.getProjectPdf(project.id);
-      const downloadUrl = dl?.data?.downloadUrl ?? dl?.data?.signedUrl;
+      const downloadUrl = dl?.data?.downloadUrl ?? dl?.data?.signedUrl ?? dl?.data?.pdfUrl;
       if (downloadUrl) {
-        setViewer({ url: downloadUrl, title: `${project.projectName || "Project"} — Project PDF` });
+        setViewer({ url: downloadUrl, title: `${project.projectName || "Project"} — Master Contract PDF` });
       } else {
         showToast("Project PDF not available.");
       }
     } catch (err: any) {
-      if (err?.status === 404) showToast("Project PDF not available.");
-      else showToast(err?.message ?? "Failed to open PDF.");
+      showToast(err?.message ?? "Failed to open PDF.");
+    }
+  }
+
+  async function handleDownloadReceiptPdf(payIndex: number) {
+    if (!project) return;
+    try {
+      const res = await projectsApi.getReceiptPdf(project.id, payIndex);
+      const url = res?.data?.downloadUrl ?? res?.data?.signedUrl;
+      if (url) {
+        setViewer({ url, title: `${project.projectName || "Project"} — Payment Receipt #${payIndex + 1}` });
+      } else {
+        showToast("Failed to generate receipt PDF.");
+      }
+    } catch (err: any) {
+      showToast(err?.message ?? "Failed to generate receipt PDF.");
     }
   }
 
@@ -589,7 +583,17 @@ export default function ProjectDetailPage() {
                     {project.payments.map((pay: any, i: number) => (
                       <div key={i} className="flex items-center justify-between rounded-2xl bg-slate-50 dark:bg-slate-800/60 px-4 py-3 border border-slate-100 dark:border-slate-800">
                         <span className="text-xs font-bold text-slate-700 dark:text-slate-300">{pay.description || "Payment"}</span>
-                        <span className="text-xs font-extrabold text-slate-900 dark:text-white">{formatCurrency(Number(pay.amount || 0))}</span>
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs font-extrabold text-slate-900 dark:text-white">{formatCurrency(Number(pay.amount || 0))}</span>
+                          <button
+                            onClick={() => handleDownloadReceiptPdf(i)}
+                            className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-bold text-slate-700 shadow-sm hover:border-indigo-500 hover:text-indigo-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 transition-colors"
+                            title="Download Payment Receipt PDF"
+                          >
+                            <FileText className="h-3.5 w-3.5 text-indigo-500" />
+                            Receipt PDF
+                          </button>
+                        </div>
                       </div>
                     ))}
                   </div>
