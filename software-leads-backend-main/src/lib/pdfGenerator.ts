@@ -2,12 +2,12 @@ import PDFDocument from 'pdfkit';
 import fs from 'fs';
 import path from 'path';
 
-// Locate logo file
-function getLogoPath(): string | null {
+// Locate letterhead background image
+function getLetterheadPath(): string | null {
   const candidates = [
-    path.join(__dirname, '../../assets/dunga_logo.png'),
-    'C:/xampp/htdocs/dunga_tech/DUNGA TECH LOGO-01.png',
-    path.join(process.cwd(), 'assets/dunga_logo.png'),
+    path.join(__dirname, '../../assets/dunga_letterhead.jpg'),
+    'C:/xampp/htdocs/dunga_tech/WhatsApp Image 2026-09-05 at 8.58.31 PM.jpeg',
+    path.join(process.cwd(), 'assets/dunga_letterhead.jpg'),
   ];
   for (const p of candidates) {
     if (fs.existsSync(p)) return p;
@@ -15,7 +15,17 @@ function getLogoPath(): string | null {
   return null;
 }
 
-const LOGO_PATH = getLogoPath();
+const LETTERHEAD_PATH = getLetterheadPath();
+
+function drawLetterheadBackground(doc: any) {
+  if (LETTERHEAD_PATH) {
+    try {
+      doc.image(LETTERHEAD_PATH, 0, 0, { width: 595.28, height: 841.89 });
+    } catch (e) {
+      console.error('Failed to render letterhead background:', e);
+    }
+  }
+}
 
 function formatINR(val: number | string): string {
   const num = parseFloat(String(val || 0));
@@ -37,10 +47,8 @@ function addFooterToAllPages(doc: any) {
   const pageCount = doc.bufferedPageRange().count;
   for (let i = 0; i < pageCount; i++) {
     doc.switchToPage(i);
-    doc.moveTo(40, 785).lineTo(555, 785).strokeColor('#e2e8f0').lineWidth(0.5).stroke();
     doc.fillColor('#64748b').fontSize(8).font('Helvetica')
-       .text('Dunga Technologies • Phone: +91 8121923831 • Email: Sales@dungatechnologies.com • www.dungatechnologies.com', 40, 790, { align: 'left', lineBreak: false });
-    doc.text(`Page ${i + 1} of ${pageCount}`, 450, 790, { align: 'right', width: 105, lineBreak: false });
+       .text(`Page ${i + 1} of ${pageCount}`, 45, 785, { align: 'left', lineBreak: false });
   }
 }
 
@@ -88,50 +96,37 @@ function renderAgreementPdf(
   prefixCode: string,
   developers: any[] = []
 ) {
-  const primaryColor = '#0f2b5c';
-  const secondaryColor = '#0971fe';
+  // Brand color scheme matching Dunga letterhead
+  const primaryTeal = '#007a87';
+  const accentOrange = '#e05a10';
   const darkText = '#1e293b';
   const mutedText = '#64748b';
 
-  let y = 35;
+  // Draw background letterhead on first page
+  drawLetterheadBackground(doc);
 
-  // --- HEADER ---
-  if (LOGO_PATH) {
-    try {
-      doc.image(LOGO_PATH, 40, y, { fit: [180, 50] });
-    } catch {
-      doc.fillColor(primaryColor).fontSize(20).font('Helvetica-Bold').text('DUNGA TECHNOLOGIES', 40, y, { lineBreak: false });
-    }
-  } else {
-    doc.fillColor(primaryColor).fontSize(20).font('Helvetica-Bold').text('DUNGA TECHNOLOGIES', 40, y, { lineBreak: false });
-  }
+  // Document Title & Metadata block aligned neatly on top right (x=140..465)
+  doc.fillColor(primaryTeal).fontSize(11).font('Helvetica-Bold').text(documentTitle, 140, 48, { width: 325, align: 'right', lineBreak: false });
+  doc.fillColor(accentOrange).fontSize(8.5).font('Helvetica-Bold').text('Version: 1.0', 140, 64, { width: 325, align: 'right', lineBreak: false });
+  doc.fillColor(mutedText).fontSize(8).font('Helvetica').text(`Ref ID: ${prefixCode}-${(project.id || '').substring(0, 8).toUpperCase()}  |  Date: ${formatDate(new Date())}`, 140, 76, { width: 325, align: 'right', lineBreak: false });
 
-  doc.fillColor(primaryColor).fontSize(13).font('Helvetica-Bold').text(documentTitle, 230, y + 4, { align: 'right', lineBreak: false });
-  doc.fillColor(mutedText).fontSize(8.5).font('Helvetica').text('Version: 1.0', 230, y + 20, { align: 'right', lineBreak: false });
-  doc.text(`Email: Sales@dungatechnologies.com  |  Phone: +91 8121923831`, 230, y + 32, { align: 'right', lineBreak: false });
-  doc.text(`Ref ID: ${prefixCode}-${(project.id || '').substring(0, 8).toUpperCase()}  |  Date: ${formatDate(new Date())}`, 230, y + 44, { align: 'right', lineBreak: false });
+  let y = 160; // Spacious 50pt margin below letterhead header logo & cut line
 
-  y += 60;
-  doc.moveTo(40, y).lineTo(555, y).strokeColor('#0f2b5c').lineWidth(1.5).stroke();
-  y += 10;
-
-  // Helper function to maintain page breaks gracefully
+  // Helper function to maintain page breaks gracefully within letterhead bounds
   const ensureSpace = (neededHeight: number) => {
-    if (y + neededHeight > 760) {
+    if (y + neededHeight > 670) {
       doc.addPage();
-      y = 35;
+      drawLetterheadBackground(doc);
       // Mini Header on subsequent pages
-      doc.fillColor(primaryColor).fontSize(9).font('Helvetica-Bold').text('DUNGA TECHNOLOGIES — PROJECT DEVELOPMENT AGREEMENT', 40, y, { lineBreak: false });
-      doc.fillColor(mutedText).fontSize(8).font('Helvetica').text(`Ref: ${prefixCode}-${(project.id || '').substring(0, 8).toUpperCase()}`, 400, y, { align: 'right', lineBreak: false });
-      y += 14;
-      doc.moveTo(40, y).lineTo(555, y).strokeColor('#cbd5e1').lineWidth(0.5).stroke();
-      y += 10;
+      doc.fillColor(primaryTeal).fontSize(9).font('Helvetica-Bold').text('DUNGA TECHNOLOGIES — PROJECT DEVELOPMENT AGREEMENT', 140, 48, { width: 325, align: 'right', lineBreak: false });
+      doc.fillColor(mutedText).fontSize(8).font('Helvetica').text(`Ref: ${prefixCode}-${(project.id || '').substring(0, 8).toUpperCase()}`, 140, 60, { width: 325, align: 'right', lineBreak: false });
+      y = 160;
     }
   };
 
   const renderSectionHeader = (title: string) => {
-    doc.rect(40, y, 515, 16).fill('#0f2b5c');
-    doc.fillColor('#ffffff').fontSize(8.5).font('Helvetica-Bold').text(title, 48, y + 4, { lineBreak: false });
+    doc.rect(45, y, 450, 16).fill(primaryTeal);
+    doc.fillColor('#ffffff').fontSize(8.5).font('Helvetica-Bold').text(title, 53, y + 4, { lineBreak: false });
     y += 20;
   };
 
@@ -140,13 +135,13 @@ function renderAgreementPdf(
   renderSectionHeader('1. AGREEMENT OVERVIEW');
   doc.fillColor(darkText).fontSize(8).font('Helvetica');
   const overviewText = 'This Project Development Agreement ("Agreement") is entered into between Dunga Technologies ("Service Provider") and the Client identified in this document.\n\nThis Agreement governs software development, website development, mobile application development, ERP, CRM, digital marketing, branding, SEO, hosting, maintenance, and related services provided by Dunga Technologies.';
-  doc.text(overviewText, 40, y, { width: 515 });
-  y += doc.heightOfString(overviewText, { width: 515 }) + 8;
+  doc.text(overviewText, 45, y, { width: 450 });
+  y += doc.heightOfString(overviewText, { width: 450 }) + 8;
 
   // 2. CLIENT INFORMATION
-  ensureSpace(90);
+  ensureSpace(85);
   renderSectionHeader('2. CLIENT INFORMATION');
-  doc.rect(40, y, 515, 60).fillAndStroke('#f8fafc', '#cbd5e1');
+  doc.rect(45, y, 450, 60).fillAndStroke('#f0fdfa', '#a7f3d0');
 
   const customerName = project.customer?.fullName || project.clientName || '—';
   const companyName = project.customer?.companyName || '—';
@@ -155,31 +150,31 @@ function renderAgreementPdf(
   const projectNo = `${prefixCode}-${(project.id || '').substring(0, 8).toUpperCase()}`;
   const address = [project.customer?.city, project.customer?.state].filter(Boolean).join(', ') || '—';
 
-  doc.fillColor(mutedText).fontSize(8).font('Helvetica-Bold').text('Customer Name:', 48, y + 6, { lineBreak: false });
-  doc.fillColor(darkText).font('Helvetica').text(customerName, 130, y + 6, { width: 170, height: 12, ellipsis: true, lineBreak: false });
+  doc.fillColor(mutedText).fontSize(8).font('Helvetica-Bold').text('Customer Name:', 53, y + 6, { lineBreak: false });
+  doc.fillColor(darkText).font('Helvetica').text(customerName, 135, y + 6, { width: 145, height: 12, ellipsis: true, lineBreak: false });
 
-  doc.fillColor(mutedText).font('Helvetica-Bold').text('Company Name:', 48, y + 19, { lineBreak: false });
-  doc.fillColor(darkText).font('Helvetica').text(companyName, 130, y + 19, { width: 170, height: 12, ellipsis: true, lineBreak: false });
+  doc.fillColor(mutedText).font('Helvetica-Bold').text('Company Name:', 53, y + 19, { lineBreak: false });
+  doc.fillColor(darkText).font('Helvetica').text(companyName, 135, y + 19, { width: 145, height: 12, ellipsis: true, lineBreak: false });
 
-  doc.fillColor(mutedText).font('Helvetica-Bold').text('Phone Number:', 48, y + 32, { lineBreak: false });
-  doc.fillColor(darkText).font('Helvetica').text(phone, 130, y + 32, { width: 170, height: 12, ellipsis: true, lineBreak: false });
+  doc.fillColor(mutedText).font('Helvetica-Bold').text('Phone Number:', 53, y + 32, { lineBreak: false });
+  doc.fillColor(darkText).font('Helvetica').text(phone, 135, y + 32, { width: 145, height: 12, ellipsis: true, lineBreak: false });
 
-  doc.fillColor(mutedText).font('Helvetica-Bold').text('Email Address:', 48, y + 45, { lineBreak: false });
-  doc.fillColor(darkText).font('Helvetica').text(email, 130, y + 45, { width: 170, height: 12, ellipsis: true, lineBreak: false });
+  doc.fillColor(mutedText).font('Helvetica-Bold').text('Email Address:', 53, y + 45, { lineBreak: false });
+  doc.fillColor(darkText).font('Helvetica').text(email, 135, y + 45, { width: 145, height: 12, ellipsis: true, lineBreak: false });
 
-  doc.fillColor(mutedText).font('Helvetica-Bold').text('Project Number:', 310, y + 6, { lineBreak: false });
-  doc.fillColor(darkText).font('Helvetica-Bold').text(projectNo, 395, y + 6, { width: 155, height: 12, ellipsis: true, lineBreak: false });
+  doc.fillColor(mutedText).font('Helvetica-Bold').text('Project Number:', 285, y + 6, { lineBreak: false });
+  doc.fillColor(darkText).font('Helvetica-Bold').text(projectNo, 365, y + 6, { width: 125, height: 12, ellipsis: true, lineBreak: false });
 
-  doc.fillColor(mutedText).font('Helvetica-Bold').text('Project Name:', 310, y + 19, { lineBreak: false });
-  doc.fillColor(darkText).font('Helvetica-Bold').text(project.projectName || '—', 395, y + 19, { width: 155, height: 12, ellipsis: true, lineBreak: false });
+  doc.fillColor(mutedText).font('Helvetica-Bold').text('Project Name:', 285, y + 19, { lineBreak: false });
+  doc.fillColor(darkText).font('Helvetica-Bold').text(project.projectName || '—', 365, y + 19, { width: 125, height: 12, ellipsis: true, lineBreak: false });
 
-  doc.fillColor(mutedText).font('Helvetica-Bold').text('Project Address:', 310, y + 32, { lineBreak: false });
-  doc.fillColor(darkText).font('Helvetica').text(address, 395, y + 32, { width: 155, height: 12, ellipsis: true, lineBreak: false });
+  doc.fillColor(mutedText).font('Helvetica-Bold').text('Project Address:', 285, y + 32, { lineBreak: false });
+  doc.fillColor(darkText).font('Helvetica').text(address, 365, y + 32, { width: 125, height: 12, ellipsis: true, lineBreak: false });
 
   y += 68;
 
   // 3. PROJECT INFORMATION
-  ensureSpace(100);
+  ensureSpace(95);
   renderSectionHeader('3. PROJECT INFORMATION');
 
   const payments = project.payments || [];
@@ -196,38 +191,38 @@ function renderAgreementPdf(
   const totalDays = timelines.reduce((s: number, t: any) => s + Number(t.workingDays || 0), 0);
   const deliveryTimeStr = totalDays > 0 ? `${totalDays} Working Days` : (project.deadline ? formatDate(project.deadline) : 'As per Milestone Schedule');
 
-  doc.rect(40, y, 515, 60).fillAndStroke('#f8fafc', '#cbd5e1');
+  doc.rect(45, y, 450, 60).fillAndStroke('#fff7ed', '#ffedd5');
 
-  doc.fillColor(mutedText).fontSize(8).font('Helvetica-Bold').text('Project Name:', 48, y + 6, { lineBreak: false });
-  doc.fillColor(darkText).font('Helvetica-Bold').text(project.projectName || '—', 140, y + 6, { width: 165, height: 12, ellipsis: true, lineBreak: false });
+  doc.fillColor(mutedText).fontSize(8).font('Helvetica-Bold').text('Project Name:', 53, y + 6, { lineBreak: false });
+  doc.fillColor(darkText).font('Helvetica-Bold').text(project.projectName || '—', 140, y + 6, { width: 140, height: 12, ellipsis: true, lineBreak: false });
 
-  doc.fillColor(mutedText).font('Helvetica-Bold').text('Project Category:', 48, y + 19, { lineBreak: false });
-  doc.fillColor(darkText).font('Helvetica').text(project.serviceType || project.projectType || 'Software Development', 140, y + 19, { width: 165, height: 12, ellipsis: true, lineBreak: false });
+  doc.fillColor(mutedText).font('Helvetica-Bold').text('Project Category:', 53, y + 19, { lineBreak: false });
+  doc.fillColor(darkText).font('Helvetica').text(project.serviceType || project.projectType || 'Software Development', 140, y + 19, { width: 140, height: 12, ellipsis: true, lineBreak: false });
 
-  doc.fillColor(mutedText).font('Helvetica-Bold').text('Estimated Delivery:', 48, y + 32, { lineBreak: false });
-  doc.fillColor(darkText).font('Helvetica').text(deliveryTimeStr, 140, y + 32, { width: 165, height: 12, ellipsis: true, lineBreak: false });
+  doc.fillColor(mutedText).font('Helvetica-Bold').text('Estimated Delivery:', 53, y + 32, { lineBreak: false });
+  doc.fillColor(darkText).font('Helvetica').text(deliveryTimeStr, 140, y + 32, { width: 140, height: 12, ellipsis: true, lineBreak: false });
 
-  doc.fillColor(mutedText).font('Helvetica-Bold').text('Support Period:', 48, y + 45, { lineBreak: false });
-  doc.fillColor(darkText).font('Helvetica').text(project.supportPeriod || 'Standard Support', 140, y + 45, { width: 165, height: 12, ellipsis: true, lineBreak: false });
+  doc.fillColor(mutedText).font('Helvetica-Bold').text('Support Period:', 53, y + 45, { lineBreak: false });
+  doc.fillColor(darkText).font('Helvetica').text(project.supportPeriod || 'Standard Support', 140, y + 45, { width: 140, height: 12, ellipsis: true, lineBreak: false });
 
-  doc.fillColor(mutedText).font('Helvetica-Bold').text('Project Cost:', 320, y + 6, { lineBreak: false });
-  doc.fillColor(darkText).font('Helvetica-Bold').text(formatINR(totalBudget), 415, y + 6, { width: 130, height: 12, ellipsis: true, lineBreak: false });
+  doc.fillColor(mutedText).font('Helvetica-Bold').text('Project Cost:', 295, y + 6, { lineBreak: false });
+  doc.fillColor(darkText).font('Helvetica-Bold').text(formatINR(totalBudget), 385, y + 6, { width: 105, height: 12, ellipsis: true, lineBreak: false });
 
-  doc.fillColor(mutedText).font('Helvetica-Bold').text('Advance Payment:', 320, y + 19, { lineBreak: false });
-  doc.fillColor('#059669').font('Helvetica-Bold').text(formatINR(advancePayment), 415, y + 19, { width: 130, height: 12, ellipsis: true, lineBreak: false });
+  doc.fillColor(mutedText).font('Helvetica-Bold').text('Advance Payment:', 295, y + 19, { lineBreak: false });
+  doc.fillColor(primaryTeal).font('Helvetica-Bold').text(formatINR(advancePayment), 385, y + 19, { width: 105, height: 12, ellipsis: true, lineBreak: false });
 
-  doc.fillColor(mutedText).font('Helvetica-Bold').text('Balance Amount:', 320, y + 32, { lineBreak: false });
-  doc.fillColor('#d97706').font('Helvetica-Bold').text(formatINR(balanceAmount), 415, y + 32, { width: 130, height: 12, ellipsis: true, lineBreak: false });
+  doc.fillColor(mutedText).font('Helvetica-Bold').text('Balance Amount:', 295, y + 32, { lineBreak: false });
+  doc.fillColor(accentOrange).font('Helvetica-Bold').text(formatINR(balanceAmount), 385, y + 32, { width: 105, height: 12, ellipsis: true, lineBreak: false });
 
   y += 68;
 
   // Project Description & Scope
   if (project.description) {
     ensureSpace(25);
-    doc.fillColor(secondaryColor).fontSize(8.5).font('Helvetica-Bold').text('Project Description:', 40, y, { lineBreak: false });
+    doc.fillColor(accentOrange).fontSize(8.5).font('Helvetica-Bold').text('Project Description:', 45, y, { lineBreak: false });
     y += 10;
-    doc.fillColor(darkText).fontSize(8).font('Helvetica').text(project.description, 40, y, { width: 515 });
-    y += doc.heightOfString(project.description, { width: 515 }) + 6;
+    doc.fillColor(darkText).fontSize(8).font('Helvetica').text(project.description, 45, y, { width: 450 });
+    y += doc.heightOfString(project.description, { width: 450 }) + 6;
   }
 
   // Web/App/Admin features or deliverables
@@ -237,19 +232,19 @@ function renderAgreementPdf(
 
   if (webList.length || appList.length || adminList.length || timelines.length) {
     ensureSpace(20);
-    doc.fillColor(secondaryColor).fontSize(8.5).font('Helvetica-Bold').text('Scope of Work & Key Deliverables:', 40, y, { lineBreak: false });
+    doc.fillColor(primaryTeal).fontSize(8.5).font('Helvetica-Bold').text('Scope of Work & Key Deliverables:', 45, y, { lineBreak: false });
     y += 10;
 
     const renderList = (catTitle: string, items: string[]) => {
       if (!items.length) return;
       ensureSpace(12);
-      doc.fillColor(darkText).fontSize(8).font('Helvetica-Bold').text(catTitle, 45, y, { lineBreak: false });
+      doc.fillColor(darkText).fontSize(8).font('Helvetica-Bold').text(catTitle, 50, y, { lineBreak: false });
       y += 9;
       items.forEach((it: string) => {
         const textStr = `• ${it}`;
-        const lineH = doc.heightOfString(textStr, { width: 495 }) + 1;
+        const lineH = doc.heightOfString(textStr, { width: 440 }) + 1;
         ensureSpace(lineH);
-        doc.fillColor(darkText).fontSize(8).font('Helvetica').text(textStr, 55, y, { width: 495 });
+        doc.fillColor(darkText).fontSize(8).font('Helvetica').text(textStr, 60, y, { width: 440 });
         y += lineH;
       });
       y += 2;
@@ -261,13 +256,13 @@ function renderAgreementPdf(
 
     if (timelines.length > 0) {
       ensureSpace(12);
-      doc.fillColor(darkText).fontSize(8).font('Helvetica-Bold').text('Milestone Deliverables Schedule:', 45, y, { lineBreak: false });
+      doc.fillColor(darkText).fontSize(8).font('Helvetica-Bold').text('Milestone Deliverables Schedule:', 50, y, { lineBreak: false });
       y += 9;
       timelines.forEach((t: any) => {
         const textStr = `• ${t.description || 'Milestone Phase'} (${t.workingDays || 0} Working Days)`;
-        const lineH = doc.heightOfString(textStr, { width: 495 }) + 1;
+        const lineH = doc.heightOfString(textStr, { width: 440 }) + 1;
         ensureSpace(lineH);
-        doc.fillColor(darkText).fontSize(8).font('Helvetica').text(textStr, 55, y, { width: 495 });
+        doc.fillColor(darkText).fontSize(8).font('Helvetica').text(textStr, 60, y, { width: 440 });
         y += lineH;
       });
       y += 3;
@@ -277,7 +272,7 @@ function renderAgreementPdf(
   y += 4;
 
   // 4. SERVICES OFFERED
-  ensureSpace(90);
+  ensureSpace(95);
   renderSectionHeader('4. SERVICES OFFERED');
   const services = [
     '• Website Design & Development',
@@ -297,9 +292,9 @@ function renderAgreementPdf(
   ];
 
   for (let i = 0; i < services.length; i += 2) {
-    doc.fillColor(darkText).fontSize(8).font('Helvetica').text(services[i], 48, y, { lineBreak: false });
+    doc.fillColor(darkText).fontSize(8).font('Helvetica').text(services[i], 53, y, { lineBreak: false });
     if (services[i + 1]) {
-      doc.text(services[i + 1], 300, y, { lineBreak: false });
+      doc.text(services[i + 1], 280, y, { lineBreak: false });
     }
     y += 10;
   }
@@ -312,8 +307,8 @@ function renderAgreementPdf(
     renderSectionHeader(`${secNum}. ${title}`);
     points.forEach((p, idx) => {
       const textLine = `${idx + 1}. ${p}`;
-      const lineH = doc.heightOfString(textLine, { width: 505 }) + 2;
-      doc.fillColor(darkText).fontSize(8).font('Helvetica').text(textLine, 45, y, { width: 505 });
+      const lineH = doc.heightOfString(textLine, { width: 440 }) + 2;
+      doc.fillColor(darkText).fontSize(8).font('Helvetica').text(textLine, 50, y, { width: 440 });
       y += lineH;
     });
     y += 3;
@@ -417,28 +412,28 @@ function renderAgreementPdf(
   ]);
 
   // 19. ACCEPTANCE & SIGNATURES
-  ensureSpace(110);
+  ensureSpace(105);
   renderSectionHeader('19. ACCEPTANCE');
   doc.fillColor(darkText).fontSize(8).font('Helvetica')
-     .text('By signing below, the Client confirms acceptance of all terms and conditions contained in this Agreement.', 40, y, { lineBreak: false });
+     .text('By signing below, the Client confirms acceptance of all terms and conditions contained in this Agreement.', 45, y, { lineBreak: false });
   y += 14;
 
   const sigY = y;
   // Client Signature Box
-  doc.rect(40, sigY, 240, 80).strokeColor('#cbd5e1').stroke();
-  doc.fillColor(primaryColor).fontSize(8.5).font('Helvetica-Bold').text('CLIENT SIGNATURE', 48, sigY + 6, { lineBreak: false });
-  doc.fillColor(darkText).fontSize(8).font('Helvetica').text(`Name: ${customerName}`, 48, sigY + 22, { lineBreak: false });
-  doc.text(`Date: ________________________`, 48, sigY + 38, { lineBreak: false });
-  doc.text(`Signature: ____________________`, 48, sigY + 58, { lineBreak: false });
+  doc.rect(45, sigY, 215, 75).strokeColor('#cbd5e1').stroke();
+  doc.fillColor(primaryTeal).fontSize(8.5).font('Helvetica-Bold').text('CLIENT SIGNATURE', 53, sigY + 6, { lineBreak: false });
+  doc.fillColor(darkText).fontSize(8).font('Helvetica').text(`Name: ${customerName}`, 53, sigY + 22, { lineBreak: false });
+  doc.text(`Date: ________________________`, 53, sigY + 36, { lineBreak: false });
+  doc.text(`Signature: ____________________`, 53, sigY + 54, { lineBreak: false });
 
   // Dunga Technologies Signature Box
-  doc.rect(315, sigY, 240, 80).strokeColor('#cbd5e1').stroke();
-  doc.fillColor(primaryColor).fontSize(8.5).font('Helvetica-Bold').text('AUTHORIZED SIGNATORY', 323, sigY + 6, { lineBreak: false });
-  doc.fillColor(secondaryColor).fontSize(8).font('Helvetica-Bold').text('DUNGA TECHNOLOGIES', 323, sigY + 18, { lineBreak: false });
-  doc.fillColor(darkText).fontSize(8).font('Helvetica').text(`Name: ________________________`, 323, sigY + 32, { lineBreak: false });
-  doc.text(`Designation: __________________`, 323, sigY + 46, { lineBreak: false });
-  doc.text(`Date: ________________________`, 323, sigY + 60, { lineBreak: false });
-  doc.fillColor(mutedText).fontSize(7.5).font('Helvetica-Oblique').text('(Company Seal)', 465, sigY + 68, { lineBreak: false });
+  doc.rect(280, sigY, 215, 75).strokeColor('#cbd5e1').stroke();
+  doc.fillColor(primaryTeal).fontSize(8.5).font('Helvetica-Bold').text('AUTHORIZED SIGNATORY', 288, sigY + 6, { lineBreak: false });
+  doc.fillColor(accentOrange).fontSize(8).font('Helvetica-Bold').text('DUNGA TECHNOLOGIES', 288, sigY + 18, { lineBreak: false });
+  doc.fillColor(darkText).fontSize(8).font('Helvetica').text(`Name: ________________________`, 288, sigY + 32, { lineBreak: false });
+  doc.text(`Designation: __________________`, 288, sigY + 44, { lineBreak: false });
+  doc.text(`Date: ________________________`, 288, sigY + 56, { lineBreak: false });
+  doc.fillColor(mutedText).fontSize(7.5).font('Helvetica-Oblique').text('(Company Seal)', 425, sigY + 62, { lineBreak: false });
 
   // Add footers on all generated pages
   addFooterToAllPages(doc);
@@ -466,78 +461,66 @@ export async function buildPaymentReceiptPdfBuffer(receiptData: {
       doc.on('data', (chunk) => buffers.push(chunk));
       doc.on('end', () => resolve(Buffer.concat(buffers)));
 
-      const primaryColor = '#0f2b5c';
-      const secondaryColor = '#0971fe';
-      const accentGreen = '#059669';
+      const primaryTeal = '#007a87';
+      const accentOrange = '#e05a10';
       const darkText = '#1e293b';
       const mutedText = '#64748b';
 
-      let topY = 35;
-      if (LOGO_PATH) {
-        try {
-          doc.image(LOGO_PATH, 40, topY, { fit: [180, 50] });
-        } catch {
-          doc.fillColor(primaryColor).fontSize(20).font('Helvetica-Bold').text('DUNGA TECHNOLOGIES', 40, topY, { lineBreak: false });
-        }
-      } else {
-        doc.fillColor(primaryColor).fontSize(20).font('Helvetica-Bold').text('DUNGA TECHNOLOGIES', 40, topY, { lineBreak: false });
-      }
+      drawLetterheadBackground(doc);
 
-      doc.fillColor(primaryColor).fontSize(16).font('Helvetica-Bold').text('PAYMENT RECEIPT', 250, topY + 5, { align: 'right', lineBreak: false });
-      doc.fillColor(mutedText).fontSize(8.5).font('Helvetica').text(`Receipt Date: ${formatDate(receiptData.date || new Date())}`, 250, topY + 26, { align: 'right', lineBreak: false });
-      doc.text(`Receipt No: ${receiptData.receiptNo}`, 250, topY + 38, { align: 'right', lineBreak: false });
+      doc.fillColor(primaryTeal).fontSize(15).font('Helvetica-Bold').text('PAYMENT RECEIPT', 140, 48, { width: 325, align: 'right', lineBreak: false });
+      doc.fillColor(accentOrange).fontSize(8.5).font('Helvetica-Bold').text(`Receipt Date: ${formatDate(receiptData.date || new Date())}`, 140, 66, { width: 325, align: 'right', lineBreak: false });
+      doc.fillColor(mutedText).fontSize(8.5).font('Helvetica').text(`Receipt No: ${receiptData.receiptNo}`, 140, 78, { width: 325, align: 'right', lineBreak: false });
 
-      doc.moveTo(40, topY + 58).lineTo(555, topY + 58).strokeColor('#0f2b5c').lineWidth(1.5).stroke();
-
-      let y = topY + 70;
+      let y = 160;
 
       // PAID BADGE & CUSTOMER DETAILS
-      doc.rect(40, y, 515, 80).fillAndStroke('#f8fafc', '#cbd5e1');
+      doc.rect(45, y, 450, 75).fillAndStroke('#f0fdfa', '#cbd5e1');
 
-      doc.rect(460, y + 10, 80, 22).fill('#10b981');
-      doc.fillColor('#ffffff').fontSize(10).font('Helvetica-Bold').text('PAID', 460, y + 15, { align: 'center', width: 80, lineBreak: false });
+      doc.rect(400, y + 10, 80, 22).fill('#10b981');
+      doc.fillColor('#ffffff').fontSize(10).font('Helvetica-Bold').text('PAID', 400, y + 15, { align: 'center', width: 80, lineBreak: false });
 
-      doc.fillColor(secondaryColor).fontSize(10).font('Helvetica-Bold').text('RECEIVED FROM', 52, y + 10, { lineBreak: false });
-      doc.fillColor(darkText).fontSize(11).font('Helvetica-Bold').text(receiptData.customerName, 52, y + 25, { lineBreak: false });
-      doc.fillColor(mutedText).fontSize(8.5).font('Helvetica').text(`Phone: ${receiptData.customerPhone || '—'}  |  Email: ${receiptData.customerEmail || '—'}`, 52, y + 42, { lineBreak: false });
+      doc.fillColor(primaryTeal).fontSize(10).font('Helvetica-Bold').text('RECEIVED FROM', 57, y + 10, { lineBreak: false });
+      doc.fillColor(darkText).fontSize(11).font('Helvetica-Bold').text(receiptData.customerName, 57, y + 23, { lineBreak: false });
+      doc.fillColor(mutedText).fontSize(8.5).font('Helvetica').text(`Phone: ${receiptData.customerPhone || '—'}  |  Email: ${receiptData.customerEmail || '—'}`, 57, y + 39, { lineBreak: false });
       if (receiptData.applicationNumber) {
-        doc.text(`App No: ${receiptData.applicationNumber}`, 52, y + 56, { lineBreak: false });
+        doc.text(`App No: ${receiptData.applicationNumber}`, 57, y + 53, { lineBreak: false });
       }
 
-      y += 95;
+      y += 90;
 
       // PAYMENT BREAKDOWN TABLE
-      doc.fillColor(primaryColor).fontSize(10).font('Helvetica-Bold').text('PAYMENT TRANSACTION DETAILS', 40, y, { lineBreak: false });
+      doc.fillColor(primaryTeal).fontSize(10).font('Helvetica-Bold').text('PAYMENT TRANSACTION DETAILS', 45, y, { lineBreak: false });
       y += 14;
 
-      doc.rect(40, y, 515, 20).fill('#0f2b5c');
-      doc.fillColor('#ffffff').fontSize(8.5).font('Helvetica-Bold').text('Project / Milestone Description', 50, y + 5, { lineBreak: false });
-      doc.text('Amount Received (INR)', 400, y + 5, { align: 'right', width: 145, lineBreak: false });
+      doc.rect(45, y, 450, 20).fill(primaryTeal);
+      doc.fillColor('#ffffff').fontSize(8.5).font('Helvetica-Bold').text('Project / Milestone Description', 55, y + 5, { lineBreak: false });
+      doc.text('Amount Received (INR)', 350, y + 5, { align: 'right', width: 135, lineBreak: false });
       y += 20;
 
-      doc.rect(40, y, 515, 26).fillAndStroke('#ffffff', '#e2e8f0');
-      doc.fillColor(darkText).fontSize(9).font('Helvetica-Bold').text(receiptData.projectName, 50, y + 5, { lineBreak: false });
-      doc.fillColor(mutedText).fontSize(8).font('Helvetica').text(receiptData.paymentDescription || 'Installment Payment', 50, y + 15, { lineBreak: false });
-      doc.fillColor(accentGreen).fontSize(11).font('Helvetica-Bold').text(formatINR(receiptData.amountPaid), 400, y + 7, { align: 'right', width: 145, lineBreak: false });
+      doc.rect(45, y, 450, 26).fillAndStroke('#ffffff', '#cbd5e1');
+      doc.fillColor(darkText).fontSize(9).font('Helvetica-Bold').text(receiptData.projectName, 55, y + 5, { lineBreak: false });
+      doc.fillColor(mutedText).fontSize(8).font('Helvetica').text(receiptData.paymentDescription || 'Installment Payment', 55, y + 15, { lineBreak: false });
+      doc.fillColor(primaryTeal).fontSize(11).font('Helvetica-Bold').text(formatINR(receiptData.amountPaid), 350, y + 7, { align: 'right', width: 135, lineBreak: false });
       y += 34;
 
       // ACCOUNT FINANCIAL SUMMARY
-      doc.rect(40, y, 515, 55).fillAndStroke('#f1f5f9', '#cbd5e1');
-      doc.fillColor(darkText).fontSize(8.5).font('Helvetica-Bold').text('Total Project Cost:', 52, y + 12, { lineBreak: false });
-      doc.text(formatINR(receiptData.totalBudget), 160, y + 12, { lineBreak: false });
+      doc.rect(45, y, 450, 55).fillAndStroke('#fff7ed', '#ffedd5');
+      doc.fillColor(darkText).fontSize(8.5).font('Helvetica-Bold').text('Total Project Cost:', 57, y + 12, { lineBreak: false });
+      doc.text(formatINR(receiptData.totalBudget), 165, y + 12, { lineBreak: false });
 
-      doc.fillColor(darkText).font('Helvetica-Bold').text('Total Paid to Date:', 52, y + 26, { lineBreak: false });
-      doc.fillColor(accentGreen).text(formatINR(receiptData.totalPaid), 160, y + 26, { lineBreak: false });
+      doc.fillColor(darkText).font('Helvetica-Bold').text('Total Paid to Date:', 57, y + 26, { lineBreak: false });
+      doc.fillColor(primaryTeal).text(formatINR(receiptData.totalPaid), 165, y + 26, { lineBreak: false });
 
-      doc.fillColor(darkText).font('Helvetica-Bold').text('Remaining Balance:', 52, y + 40, { lineBreak: false });
-      doc.fillColor(receiptData.remainingBalance > 0 ? '#d97706' : accentGreen).text(formatINR(receiptData.remainingBalance), 160, y + 40, { lineBreak: false });
+      doc.fillColor(darkText).font('Helvetica-Bold').text('Remaining Balance:', 57, y + 40, { lineBreak: false });
+      doc.fillColor(receiptData.remainingBalance > 0 ? accentOrange : primaryTeal).text(formatINR(receiptData.remainingBalance), 165, y + 40, { lineBreak: false });
 
-      y += 75;
+      y += 70;
 
       // STAMP / FOOTER STATEMENT
-      doc.rect(40, y, 515, 50).fillAndStroke('#ecfdf5', '#a7f3d0');
-      doc.fillColor(accentGreen).fontSize(9).font('Helvetica-Bold').text('Official Computer Generated Receipt', 52, y + 12, { lineBreak: false });
-      doc.fillColor(mutedText).fontSize(8).font('Helvetica').text('This receipt serves as proof of payment received by Dunga Technologies. No physical signature required.', 52, y + 26);
+      doc.rect(45, y, 450, 45).fillAndStroke('#f0fdfa', '#a7f3d0');
+      doc.fillColor(primaryTeal).fontSize(9).font('Helvetica-Bold').text('Official Computer Generated Receipt', 57, y + 10, { lineBreak: false });
+      doc.fillColor(mutedText).fontSize(8).font('Helvetica').text('This receipt serves as proof of payment received by Dunga Technologies. No physical signature required.', 57, y + 24);
 
       addFooterToAllPages(doc);
 
