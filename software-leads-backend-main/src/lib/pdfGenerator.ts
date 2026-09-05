@@ -111,6 +111,43 @@ function renderEstimationQuotationPdf(doc: any, project: any) {
   doc.rect(45, y, 220, 2.5).fill(accentOrange);
   y += 12;
 
+  // ── Calculate Delivery Days ───────────────────────────────────────────────
+  let totalWorkingDays = 0;
+  if (Array.isArray(project.timelines) && project.timelines.length > 0) {
+    totalWorkingDays = project.timelines.reduce((sum: number, t: any) => sum + (parseInt(String(t.workingDays || 0)) || 0), 0);
+  }
+  const deliveryDaysText = totalWorkingDays > 0 
+    ? `${totalWorkingDays} Working Days` 
+    : (project.estimatedDeliveryTime || (project.deadline ? `${Math.max(1, Math.ceil((new Date(project.deadline).getTime() - new Date().getTime()) / (1000 * 3600 * 24)))} Days` : '45 Working Days'));
+
+  // Calculate Total Cost
+  let baseItemsTotal = 0;
+  if (Array.isArray(project.costHistory) && project.costHistory.length > 0) {
+    baseItemsTotal = project.costHistory.reduce((sum: number, item: any) => sum + Number(item.amount || 0), 0);
+  } else if (Array.isArray(project.featureItems) && project.featureItems.length > 0) {
+    baseItemsTotal = project.featureItems.reduce((sum: number, item: any) => sum + Number(item.price || item.amount || 0), 0);
+  } else {
+    baseItemsTotal = Number(project.budget || project.projectCost || 0);
+  }
+  const displayTotal = baseItemsTotal > 0 ? baseItemsTotal : Number(project.budget || project.projectCost || 50000);
+
+  // ── KEY HIGHLIGHTS SUMMARY CARD (PRICE, DELIVERY DAYS & COMPLIMENTARY) ────
+  doc.rect(45, y, 450, 40).fillAndStroke('#f0fdfa', '#007a87');
+  
+  // Highlight 1: Price
+  doc.fillColor(primaryTeal).fontSize(7.5).font('Helvetica-Bold').text('ESTIMATED PRICE', 55, y + 6, { width: 140 });
+  doc.fillColor(accentOrange).fontSize(11).font('Helvetica-Bold').text(`Rs. ${displayTotal.toLocaleString('en-IN')}/-`, 55, y + 18, { width: 140, lineBreak: false });
+
+  // Highlight 2: Delivery Days
+  doc.fillColor(primaryTeal).fontSize(7.5).font('Helvetica-Bold').text('DELIVERY TIMELINE', 205, y + 6, { width: 130 });
+  doc.fillColor(primaryTeal).fontSize(11).font('Helvetica-Bold').text(deliveryDaysText, 205, y + 18, { width: 130, lineBreak: false });
+
+  // Highlight 3: Included Free Services
+  doc.fillColor(primaryTeal).fontSize(7.5).font('Helvetica-Bold').text('INCLUDED COMPLIMENTARY', 345, y + 6, { width: 145 });
+  doc.fillColor('#059669').fontSize(8.5).font('Helvetica-Bold').text('Free Domain, Hosting & Support', 345, y + 20, { width: 145, lineBreak: false });
+
+  y += 48;
+
   // ── 1. CLIENT INFORMATION CARD ─────────────────────────────────────────────
   const customerName = project.customer?.fullName || project.clientName || 'Valued Client';
   const companyName = project.customer?.companyName || '—';
@@ -179,53 +216,95 @@ function renderEstimationQuotationPdf(doc: any, project: any) {
   y += 18;
 
   // Prepare table items
-  let tableItems: { label: string; qty: string; rate: number; amount: number }[] = [];
+  let tableItems: { label: string; qty: string; rateStr: string; amountStr: string; isFree?: boolean }[] = [];
 
   if (Array.isArray(project.costHistory) && project.costHistory.length > 0) {
-    tableItems = project.costHistory.map((item: any, idx: number) => ({
-      label: item.label || item.description || `Module ${idx + 1}`,
-      qty: '1 Service',
-      rate: Number(item.amount || 0),
-      amount: Number(item.amount || 0),
-    }));
+    project.costHistory.forEach((item: any, idx: number) => {
+      const amt = Number(item.amount || 0);
+      tableItems.push({
+        label: item.label || item.description || `Module ${idx + 1}`,
+        qty: '1 Service',
+        rateStr: amt > 0 ? amt.toLocaleString('en-IN') : '0 (FREE)',
+        amountStr: amt > 0 ? amt.toLocaleString('en-IN') : 'INCLUDED',
+        isFree: amt === 0
+      });
+    });
+  } else if (Array.isArray(project.featureItems) && project.featureItems.length > 0) {
+    project.featureItems.forEach((item: any, idx: number) => {
+      const amt = Number(item.price || item.amount || 0);
+      tableItems.push({
+        label: item.name || item.title || `Feature ${idx + 1}`,
+        qty: '1 Feature',
+        rateStr: amt > 0 ? amt.toLocaleString('en-IN') : '0 (FREE)',
+        amountStr: amt > 0 ? amt.toLocaleString('en-IN') : 'INCLUDED',
+        isFree: amt === 0
+      });
+    });
   } else if (Array.isArray(project.webOverview) && project.webOverview.length > 0) {
     const totalBudget = Number(project.budget || project.projectCost || 0);
     const itemCost = Math.round(totalBudget / Math.max(1, project.webOverview.length));
-    tableItems = project.webOverview.map((desc: string) => ({
-      label: desc,
-      qty: '1 Module',
-      rate: itemCost,
-      amount: itemCost,
-    }));
+    project.webOverview.forEach((desc: string) => {
+      tableItems.push({
+        label: desc,
+        qty: '1 Module',
+        rateStr: itemCost.toLocaleString('en-IN'),
+        amountStr: itemCost.toLocaleString('en-IN'),
+      });
+    });
   } else {
     const totalBudget = Number(project.budget || project.projectCost || 0);
-    tableItems = [
-      {
-        label: `${project.projectName || 'Software Development'} — Core System Design, API & Implementation`,
-        qty: '1 Package',
-        rate: totalBudget,
-        amount: totalBudget,
-      },
-    ];
+    tableItems.push({
+      label: `${project.projectName || 'Software Development'} — Core System Design, API & Implementation`,
+      qty: '1 Package',
+      rateStr: totalBudget.toLocaleString('en-IN'),
+      amountStr: totalBudget.toLocaleString('en-IN'),
+    });
   }
 
-  const calculatedTotal = tableItems.reduce((sum, item) => sum + item.amount, 0);
-  const finalTotal = calculatedTotal > 0 ? calculatedTotal : Number(project.budget || project.projectCost || 0);
+  // Always include Zero Value / Free Addons requested by user
+  tableItems.push({
+    label: 'Domain Name Registration & SSL Certificate (1st Year)',
+    qty: '1 Year',
+    rateStr: '0 (FREE)',
+    amountStr: 'INCLUDED',
+    isFree: true
+  });
+  tableItems.push({
+    label: 'Cloud Server Setup & Hosting Infrastructure',
+    qty: '1 Setup',
+    rateStr: '0 (FREE)',
+    amountStr: 'INCLUDED',
+    isFree: true
+  });
+  tableItems.push({
+    label: 'Post-Launch Technical Support & Maintenance (24/7)',
+    qty: '1 Year',
+    rateStr: '0 (FREE)',
+    amountStr: 'INCLUDED',
+    isFree: true
+  });
+
+  const finalTotal = displayTotal;
 
   // Render Table Rows
   doc.font('Helvetica').fontSize(8);
   tableItems.forEach((item, idx) => {
     ensureSpace(22);
     const rowH = Math.max(18, doc.heightOfString(item.label, { width: colW[1] - 10 }) + 6);
-    const bgFill = idx % 2 === 0 ? '#ffffff' : '#f8fafc';
+    const bgFill = item.isFree ? '#f0fdf4' : (idx % 2 === 0 ? '#ffffff' : '#f8fafc');
     doc.rect(45, y, 450, rowH).fillAndStroke(bgFill, '#e2e8f0');
 
-    doc.fillColor(darkText);
+    if (item.isFree) {
+      doc.fillColor('#047857');
+    } else {
+      doc.fillColor(darkText);
+    }
+
     doc.text(String(idx + 1), colX[0], y + 4, { width: colW[0], align: 'center' });
     doc.text(item.label, colX[1] + 5, y + 4, { width: colW[1] - 10, align: 'left' });
     doc.text(item.qty, colX[2], y + 4, { width: colW[2], align: 'center' });
-    doc.text(item.rate.toLocaleString('en-IN'), colX[3], y + 4, { width: colW[3], align: 'right' });
-    doc.text(item.amount.toLocaleString('en-IN'), colX[4], y + 4, { width: colW[4], align: 'right' });
+    doc.text(item.rateStr, colX[3], y + 4, { width: colW[3], align: 'right' });
+    doc.text(item.amountStr, colX[4], y + 4, { width: colW[4], align: 'right' });
 
     y += rowH;
   });
