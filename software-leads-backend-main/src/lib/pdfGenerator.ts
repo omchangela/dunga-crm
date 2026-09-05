@@ -52,7 +52,7 @@ function addFooterToAllPages(doc: any) {
   }
 }
 
-// ── 1. ESTIMATION & PROPOSAL PDF (AGREEMENT VER. 1.0) ─────────────────────────
+// ── 1. ESTIMATION & PROPOSAL PDF (CLEAN CARD-BASED QUOTATION) ─────────────────
 export async function buildEstimationPdfBuffer(project: any): Promise<Buffer> {
   return new Promise((resolve, reject) => {
     try {
@@ -61,13 +61,231 @@ export async function buildEstimationPdfBuffer(project: any): Promise<Buffer> {
       doc.on('data', (chunk) => buffers.push(chunk));
       doc.on('end', () => resolve(Buffer.concat(buffers)));
 
-      renderAgreementPdf(doc, project, 'PROJECT ESTIMATION & PROPOSAL', 'EST');
+      renderEstimationQuotationPdf(doc, project);
 
       doc.end();
     } catch (err) {
       reject(err);
     }
   });
+}
+
+// Render modern Card-Based Estimation / Quotation PDF matching official demo design
+function renderEstimationQuotationPdf(doc: any, project: any) {
+  const primaryTeal = '#007a87';
+  const accentOrange = '#e05a10';
+  const darkText = '#1e293b';
+  const mutedText = '#64748b';
+
+  drawLetterheadBackground(doc);
+
+  // Top-Right Header Meta Block
+  const estNumber = project.applicationNumber || project.projectNumber || `DT/EST/${new Date().getFullYear()}/${(project.id || '').substring(0, 5).toUpperCase()}`;
+  doc.fillColor(primaryTeal).fontSize(9).font('Helvetica-Bold').text('ESTIMATION No.  :', 250, 48, { width: 110, align: 'right' });
+  doc.fillColor(darkText).fontSize(9).font('Helvetica-Bold').text(estNumber, 365, 48, { width: 130, align: 'left' });
+
+  doc.fillColor(primaryTeal).fontSize(9).font('Helvetica-Bold').text('DATE  :', 250, 63, { width: 110, align: 'right' });
+  doc.fillColor(darkText).fontSize(9).font('Helvetica').text(formatDate(project.createdAt || new Date()), 365, 63, { width: 130, align: 'left' });
+
+  let y = 145;
+
+  // Main Document Header Title
+  doc.fillColor(primaryTeal).fontSize(16).font('Helvetica-Bold').text('ESTIMATION / QUOTATION', 45, y, { lineBreak: false });
+  y += 20;
+  const projectTitle = (project.projectName || project.serviceType || 'SOFTWARE DEVELOPMENT SERVICES').toUpperCase();
+  doc.fillColor(darkText).fontSize(10).font('Helvetica-Bold').text(`FOR ${projectTitle}`, 45, y, { lineBreak: false });
+  y += 14;
+
+  // Orange underline accent bar
+  doc.rect(45, y, 220, 2.5).fill(accentOrange);
+  y += 12;
+
+  // ── 1. CLIENT INFORMATION CARD ─────────────────────────────────────────────
+  const customerName = project.customer?.fullName || project.clientName || 'Valued Client';
+  const companyName = project.customer?.companyName || '—';
+  const phone = project.customer?.phone || project.phone || '—';
+  const email = project.customer?.email || project.email || '—';
+  const location = [project.customer?.city, project.customer?.state].filter(Boolean).join(', ') || 'Hyderabad';
+
+  const cardHeight = 58;
+  doc.rect(45, y, 450, cardHeight).fillAndStroke('#f8fafc', '#cbd5e1');
+
+  // Left Column
+  doc.fillColor(primaryTeal).fontSize(8.5).font('Helvetica-Bold').text('CLIENT NAME', 55, y + 8);
+  doc.fillColor(darkText).fontSize(8.5).font('Helvetica-Bold').text(`:  ${customerName}`, 140, y + 8);
+
+  doc.fillColor(primaryTeal).fontSize(8.5).font('Helvetica-Bold').text('PHONE NUMBER', 55, y + 24);
+  doc.fillColor(darkText).fontSize(8.5).font('Helvetica').text(`:  ${phone}`, 140, y + 24);
+
+  doc.fillColor(primaryTeal).fontSize(8.5).font('Helvetica-Bold').text('LOCATION', 55, y + 40);
+  doc.fillColor(darkText).fontSize(8.5).font('Helvetica').text(`:  ${location}`, 140, y + 40);
+
+  // Right Column
+  doc.fillColor(primaryTeal).fontSize(8.5).font('Helvetica-Bold').text('COMPANY NAME', 270, y + 8);
+  doc.fillColor(darkText).fontSize(8.5).font('Helvetica').text(`:  ${companyName}`, 360, y + 8);
+
+  doc.fillColor(primaryTeal).fontSize(8.5).font('Helvetica-Bold').text('EMAIL ADDRESS', 270, y + 24);
+  doc.fillColor(darkText).fontSize(8.5).font('Helvetica').text(`:  ${email}`, 360, y + 24);
+
+  doc.fillColor(primaryTeal).fontSize(8.5).font('Helvetica-Bold').text('SERVICE TYPE', 270, y + 40);
+  doc.fillColor(darkText).fontSize(8.5).font('Helvetica').text(`:  ${project.serviceType || 'Software Development'}`, 360, y + 40);
+
+  y += cardHeight + 10;
+
+  // Intro note
+  doc.fillColor(darkText).fontSize(8.5).font('Helvetica');
+  doc.text('Thank you for considering ', 45, y, { continued: true });
+  doc.fillColor(accentOrange).font('Helvetica-Bold').text('Dunga Technologies ', { continued: true });
+  doc.fillColor(darkText).font('Helvetica').text(`for your ${project.serviceType || 'project'} requirements. Please find below the estimation for the proposed services.`);
+  y += 16;
+
+  // ── 2. SERVICES & COMMERCIAL COST TABLE ──────────────────────────────────
+  const colX = [45, 80, 310, 375, 435];
+  const colW = [35, 230, 65, 60, 60];
+
+  doc.rect(45, y, 450, 18).fill(primaryTeal);
+  doc.fillColor('#ffffff').fontSize(8.5).font('Helvetica-Bold');
+  doc.text('S.No.', colX[0], y + 4, { width: colW[0], align: 'center' });
+  doc.text('DESCRIPTION / SCOPE ITEM', colX[1] + 5, y + 4, { width: colW[1] - 5, align: 'left' });
+  doc.text('QUANTITY', colX[2], y + 4, { width: colW[2], align: 'center' });
+  doc.text('RATE (₹)', colX[3], y + 4, { width: colW[3], align: 'right' });
+  doc.text('AMOUNT (₹)', colX[4], y + 4, { width: colW[4], align: 'right' });
+  y += 18;
+
+  // Prepare table items
+  let tableItems: { label: string; qty: string; rate: number; amount: number }[] = [];
+
+  if (Array.isArray(project.costHistory) && project.costHistory.length > 0) {
+    tableItems = project.costHistory.map((item: any, idx: number) => ({
+      label: item.label || item.description || `Module ${idx + 1}`,
+      qty: '1 Service',
+      rate: Number(item.amount || 0),
+      amount: Number(item.amount || 0),
+    }));
+  } else if (Array.isArray(project.webOverview) && project.webOverview.length > 0) {
+    const totalBudget = Number(project.budget || project.projectCost || 0);
+    const itemCost = Math.round(totalBudget / Math.max(1, project.webOverview.length));
+    tableItems = project.webOverview.map((desc: string) => ({
+      label: desc,
+      qty: '1 Module',
+      rate: itemCost,
+      amount: itemCost,
+    }));
+  } else {
+    const totalBudget = Number(project.budget || project.projectCost || 0);
+    tableItems = [
+      {
+        label: `${project.projectName || 'Software Development'} — Core System Design, API & Implementation`,
+        qty: '1 Package',
+        rate: totalBudget,
+        amount: totalBudget,
+      },
+    ];
+  }
+
+  const calculatedTotal = tableItems.reduce((sum, item) => sum + item.amount, 0);
+  const finalTotal = calculatedTotal > 0 ? calculatedTotal : Number(project.budget || project.projectCost || 0);
+
+  // Render Table Rows
+  doc.font('Helvetica').fontSize(8);
+  tableItems.forEach((item, idx) => {
+    const rowH = Math.max(18, doc.heightOfString(item.label, { width: colW[1] - 10 }) + 6);
+    const bgFill = idx % 2 === 0 ? '#ffffff' : '#f8fafc';
+    doc.rect(45, y, 450, rowH).fillAndStroke(bgFill, '#e2e8f0');
+
+    doc.fillColor(darkText);
+    doc.text(String(idx + 1), colX[0], y + 4, { width: colW[0], align: 'center' });
+    doc.text(item.label, colX[1] + 5, y + 4, { width: colW[1] - 10, align: 'left' });
+    doc.text(item.qty, colX[2], y + 4, { width: colW[2], align: 'center' });
+    doc.text(item.rate.toLocaleString('en-IN'), colX[3], y + 4, { width: colW[3], align: 'right' });
+    doc.text(item.amount.toLocaleString('en-IN'), colX[4], y + 4, { width: colW[4], align: 'right' });
+
+    y += rowH;
+  });
+
+  // Total Summary Row with Orange Badge
+  const totalRowH = 22;
+  doc.rect(45, y, 450, totalRowH).fillAndStroke('#f0fdfa', '#cbd5e1');
+  doc.fillColor(primaryTeal).fontSize(9).font('Helvetica-Bold').text('TOTAL ESTIMATED VALUE', 55, y + 6);
+
+  // Orange Total Badge Box
+  doc.rect(345, y + 2, 150, 18).fill(accentOrange);
+  doc.fillColor('#ffffff').fontSize(9.5).font('Helvetica-Bold').text(`₹ ${finalTotal.toLocaleString('en-IN')}/-`, 345, y + 5, { width: 150, align: 'center' });
+
+  y += totalRowH + 12;
+
+  // ── 3. PAYMENT INFORMATION CARD ──────────────────────────────────────────
+  const advanceAmount = Number(project.advancePayment || Math.round(finalTotal * 0.5));
+  const balanceAmount = Math.max(0, finalTotal - advanceAmount);
+
+  const paymentCardH = 55;
+  doc.rect(45, y, 450, paymentCardH).fillAndStroke('#f0fdfa', '#a7f3d0');
+
+  // Circle Badge
+  doc.circle(75, y + 27, 18).fill(primaryTeal);
+  doc.fillColor('#ffffff').fontSize(11).font('Helvetica-Bold').text('₹', 65, y + 22, { width: 20, align: 'center' });
+
+  // Left Section
+  doc.fillColor(primaryTeal).fontSize(9).font('Helvetica-Bold').text('PAYMENT TERMS', 105, y + 10);
+  doc.fillColor(darkText).fontSize(8.5).font('Helvetica-Bold').text(`₹${advanceAmount.toLocaleString('en-IN')} Advance`, 105, y + 24);
+  doc.rect(105, y + 36, 110, 13).fill('#ffedd5');
+  doc.fillColor(accentOrange).fontSize(7.5).font('Helvetica-Bold').text('50% ADVANCE REQUIRED', 105, y + 39, { width: 110, align: 'center' });
+
+  // Right Section
+  doc.fillColor(primaryTeal).fontSize(8.5).font('Helvetica-Bold').text('TOTAL ESTIMATED AMOUNT', 260, y + 10);
+  doc.fillColor(accentOrange).fontSize(14).font('Helvetica-Bold').text(`₹${finalTotal.toLocaleString('en-IN')}/-`, 260, y + 22);
+  doc.fillColor(mutedText).fontSize(7.5).font('Helvetica').text(`Payment Schedule: ${advanceAmount > 0 ? `${formatINR(advanceAmount)} advance, balance ${formatINR(balanceAmount)} upon delivery.` : '100% payment as per agreed milestones.'}`, 260, y + 39, { width: 220 });
+
+  y += paymentCardH + 12;
+
+  // ── 4. PROJECT TIMELINE & SUPPORT COVERAGE CARD ────────────────────────────
+  const deliveryTime = project.estimatedDeliveryTime || (project.deadline ? `${Math.ceil((new Date(project.deadline).getTime() - new Date().getTime()) / (1000 * 3600 * 24))} Days` : '30 - 45 Working Days');
+  const supportPeriod = project.supportPeriod || '3 Months Included';
+
+  const timelineCardH = 45;
+  doc.rect(45, y, 450, timelineCardH).fillAndStroke('#fff7ed', '#fed7aa');
+
+  doc.fillColor(accentOrange).fontSize(9).font('Helvetica-Bold').text('PROJECT TIMELINE & SUPPORT COVERAGE', 55, y + 8);
+  doc.fillColor(darkText).fontSize(8.5).font('Helvetica-Bold').text('Estimated Delivery Time :', 55, y + 24);
+  doc.fillColor(darkText).fontSize(8.5).font('Helvetica').text(deliveryTime, 175, y + 24);
+
+  doc.fillColor(darkText).fontSize(8.5).font('Helvetica-Bold').text('Support & Maintenance  :', 280, y + 24);
+  doc.fillColor(darkText).fontSize(8.5).font('Helvetica').text(supportPeriod, 395, y + 24);
+
+  y += timelineCardH + 12;
+
+  // ── 5. TERMS & CONDITIONS AND NOTE ───────────────────────────────────────
+  doc.fillColor(primaryTeal).fontSize(9).font('Helvetica-Bold').text('TERMS & CONDITIONS', 45, y);
+  doc.fillColor(primaryTeal).fontSize(9).font('Helvetica-Bold').text('NOTE', 320, y);
+  y += 12;
+
+  const tcWidth = 260;
+  const noteWidth = 175;
+
+  const tcLines = [
+    '1. The quoted amount is applicable for the specified project scope.',
+    '2. Advance payment of 50% is required before commencement of development.',
+    `3. Remaining balance amount of ₹${balanceAmount.toLocaleString('en-IN')} is payable upon delivery.`,
+    '4. Any additional features requested outside agreed scope will be quoted separately.',
+    '5. Service commencement & delivery timeline starts after advance payment confirmation.',
+  ];
+
+  const startTcY = y;
+  doc.fillColor(darkText).fontSize(7.5).font('Helvetica');
+  tcLines.forEach((line) => {
+    doc.text(line, 45, y, { width: tcWidth });
+    y += doc.heightOfString(line, { width: tcWidth }) + 3;
+  });
+
+  // Right Side Note Box
+  let noteY = startTcY;
+  doc.fillColor(darkText).fontSize(7.5).font('Helvetica');
+  doc.text('We are committed to delivering result-oriented, high-performance software & digital solutions to help your business grow.', 320, noteY, { width: noteWidth });
+  noteY += 28;
+
+  doc.fillColor(accentOrange).fontSize(13).font('Helvetica-Bold').text('Thank You!', 320, noteY);
+  noteY += 16;
+  doc.fillColor(darkText).fontSize(8).font('Helvetica').text('We look forward to working with you.', 320, noteY);
 }
 
 // ── 2. MASTER PROJECT CONTRACT PDF (AGREEMENT VER. 1.0) ──────────────────────
