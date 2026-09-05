@@ -89,6 +89,17 @@ function renderEstimationQuotationPdf(doc: any, project: any) {
 
   let y = 145;
 
+  const ensureSpace = (neededHeight: number) => {
+    if (y + neededHeight > 670) {
+      doc.addPage();
+      drawLetterheadBackground(doc);
+      // Mini Header on subsequent pages
+      doc.fillColor(primaryTeal).fontSize(9).font('Helvetica-Bold').text('DUNGA TECHNOLOGIES — PROJECT ESTIMATION / QUOTATION', 140, 48, { width: 325, align: 'right', lineBreak: false });
+      doc.fillColor(mutedText).fontSize(8).font('Helvetica').text(`Ref: ${estNumber}`, 140, 60, { width: 325, align: 'right', lineBreak: false });
+      y = 160;
+    }
+  };
+
   // Main Document Header Title
   doc.fillColor(primaryTeal).fontSize(16).font('Helvetica-Bold').text('ESTIMATION / QUOTATION', 45, y, { lineBreak: false });
   y += 20;
@@ -132,15 +143,29 @@ function renderEstimationQuotationPdf(doc: any, project: any) {
 
   y += cardHeight + 10;
 
-  // Intro note formatted in 1 clean text call with exact height calculation
-  const introStr = `Thank you for considering Dunga Technologies for your ${project.serviceType || 'project'} requirements. Please find below the estimation for the proposed services.`;
-  const introH = doc.heightOfString(introStr, { width: 450 });
+  // ── 2. PROJECT OVERVIEW & DESCRIPTION CARD ────────────────────────────────
+  if (project.description && project.description.trim().length > 0) {
+    ensureSpace(45);
+    const descText = project.description.trim();
+    const descContentH = doc.heightOfString(descText, { width: 435 });
+    const descCardH = Math.max(38, descContentH + 22);
 
-  doc.fillColor(darkText).fontSize(8.5).font('Helvetica').text(introStr, 45, y, { width: 450, align: 'left' });
-  
-  y += introH + 12; // Clean 12pt gap before table header bar
+    doc.rect(45, y, 450, descCardH).fillAndStroke('#f0fdfa', '#cbd5e1');
+    doc.fillColor(primaryTeal).fontSize(8.5).font('Helvetica-Bold').text('PROJECT OVERVIEW & DESCRIPTION', 55, y + 6);
+    doc.fillColor(darkText).fontSize(8).font('Helvetica').text(descText, 55, y + 18, { width: 435 });
 
-  // ── 2. SERVICES & COMMERCIAL COST TABLE ──────────────────────────────────
+    y += descCardH + 10;
+  } else {
+    // Intro note fallback
+    ensureSpace(30);
+    const introStr = `Thank you for considering Dunga Technologies for your ${project.serviceType || 'project'} requirements. Please find below the estimation for the proposed services.`;
+    const introH = doc.heightOfString(introStr, { width: 450 });
+    doc.fillColor(darkText).fontSize(8.5).font('Helvetica').text(introStr, 45, y, { width: 450, align: 'left' });
+    y += introH + 12;
+  }
+
+  // ── 3. SERVICES & COMMERCIAL COST TABLE ──────────────────────────────────
+  ensureSpace(60);
   const colX = [45, 80, 300, 360, 425];
   const colW = [35, 215, 55, 65, 65];
 
@@ -190,6 +215,7 @@ function renderEstimationQuotationPdf(doc: any, project: any) {
   // Render Table Rows
   doc.font('Helvetica').fontSize(8);
   tableItems.forEach((item, idx) => {
+    ensureSpace(22);
     const rowH = Math.max(18, doc.heightOfString(item.label, { width: colW[1] - 10 }) + 6);
     const bgFill = idx % 2 === 0 ? '#ffffff' : '#f8fafc';
     doc.rect(45, y, 450, rowH).fillAndStroke(bgFill, '#e2e8f0');
@@ -205,6 +231,7 @@ function renderEstimationQuotationPdf(doc: any, project: any) {
   });
 
   // Total Summary Row with Orange Badge
+  ensureSpace(26);
   const totalRowH = 22;
   doc.rect(45, y, 450, totalRowH).fillAndStroke('#f0fdfa', '#cbd5e1');
   doc.fillColor(primaryTeal).fontSize(9).font('Helvetica-Bold').text('TOTAL ESTIMATED VALUE', 55, y + 6);
@@ -215,57 +242,81 @@ function renderEstimationQuotationPdf(doc: any, project: any) {
 
   y += totalRowH + 12;
 
-  // ── 3. PAYMENT INFORMATION CARD ──────────────────────────────────────────
+  // ── 4. MILESTONE PAYMENT CHUNKS BREAKDOWN ─────────────────────────────────
+  ensureSpace(70);
   const advanceAmount = Number(project.advancePayment || Math.round(finalTotal * 0.5));
   const balanceAmount = Math.max(0, finalTotal - advanceAmount);
 
-  const paymentCardH = 55;
-  doc.rect(45, y, 450, paymentCardH).fillAndStroke('#f0fdfa', '#cbd5e1');
+  let paymentChunks: { title: string; amount: number; stage: string }[] = [];
 
-  // Left Section - Circle Badge & Payment Terms
-  doc.circle(75, y + 27, 16).fill(primaryTeal);
-  doc.fillColor('#ffffff').fontSize(8.5).font('Helvetica-Bold').text('PAY', 60, y + 23, { width: 30, align: 'center' });
+  if (Array.isArray(project.payments) && project.payments.length > 0) {
+    paymentChunks = project.payments.map((p: any, i: number) => ({
+      title: p.description || p.label || `Phase ${i + 1} Milestone Payment`,
+      amount: Number(p.amount || 0),
+      stage: p.date ? `Scheduled / ${p.date}` : `Milestone Chunk ${i + 1}`,
+    }));
+  } else {
+    // Generate standard 3-chunk milestone schedule
+    const chunk1 = Math.round(finalTotal * 0.5);
+    const chunk2 = Math.round(finalTotal * 0.25);
+    const chunk3 = finalTotal - chunk1 - chunk2;
+    paymentChunks = [
+      { title: 'Chunk 1: 50% Advance Payment (Booking & System Design)', amount: chunk1, stage: 'Due on Project Booking' },
+      { title: 'Chunk 2: 25% Mid Milestone Payment (UI/UX & Core API Delivery)', amount: chunk2, stage: 'On Phase 1 Completion' },
+      { title: 'Chunk 3: 25% Final Settlement (QA, Testing & Production Launch)', amount: chunk3, stage: 'Before Final Launch' },
+    ];
+  }
 
-  doc.fillColor(primaryTeal).fontSize(9).font('Helvetica-Bold').text('PAYMENT TERMS', 102, y + 8);
-  doc.fillColor(darkText).fontSize(8.5).font('Helvetica-Bold').text(`Rs. ${advanceAmount.toLocaleString('en-IN')} Advance`, 102, y + 22);
-  doc.rect(102, y + 35, 115, 13).fill('#ffedd5');
-  doc.fillColor(accentOrange).fontSize(7.5).font('Helvetica-Bold').text('50% ADVANCE REQUIRED', 102, y + 38, { width: 115, align: 'center' });
+  const chunksBoxH = 20 + paymentChunks.length * 18 + 8;
+  doc.rect(45, y, 450, chunksBoxH).fillAndStroke('#f0fdfa', '#cbd5e1');
+  doc.fillColor(primaryTeal).fontSize(9).font('Helvetica-Bold').text('PAYMENT MILESTONES & SCHEDULE (IN CHUNKS)', 55, y + 6);
 
-  // Divider Line
-  doc.moveTo(235, y + 8).lineTo(235, y + 47).strokeColor('#cbd5e1').stroke();
+  let chunkY = y + 20;
+  paymentChunks.forEach((chk, idx) => {
+    doc.fillColor(darkText).fontSize(8).font('Helvetica-Bold').text(`${idx + 1}. ${chk.title}`, 55, chunkY, { width: 270, height: 14, lineBreak: false, ellipsis: true });
+    doc.fillColor(accentOrange).fontSize(8).font('Helvetica-Bold').text(`Rs. ${chk.amount.toLocaleString('en-IN')}`, 330, chunkY, { width: 70, align: 'right' });
+    doc.fillColor(mutedText).fontSize(7.5).font('Helvetica').text(`(${chk.stage})`, 405, chunkY, { width: 85, align: 'left' });
+    chunkY += 18;
+  });
 
-  // Right Section - Total & Schedule
-  doc.fillColor(primaryTeal).fontSize(8.5).font('Helvetica-Bold').text('TOTAL ESTIMATED AMOUNT', 250, y + 8);
-  doc.fillColor(accentOrange).fontSize(14).font('Helvetica-Bold').text(`Rs. ${finalTotal.toLocaleString('en-IN')}/-`, 250, y + 20);
+  y += chunksBoxH + 10;
 
-  const scheduleText = `Payment Schedule: Rs. ${advanceAmount.toLocaleString('en-IN')} advance, balance Rs. ${balanceAmount.toLocaleString('en-IN')} upon delivery.`;
-  doc.fillColor(mutedText).fontSize(7.5).font('Helvetica').text(scheduleText, 250, y + 37, { width: 235, height: 16, lineBreak: true });
+  // ── 5. ACCEPTED PAYMENT MODES & BANK DETAILS ──────────────────────────────
+  ensureSpace(45);
+  const paymentModeCardH = 40;
+  doc.rect(45, y, 450, paymentModeCardH).fillAndStroke('#f8fafc', '#cbd5e1');
 
-  y += paymentCardH + 12;
+  doc.fillColor(primaryTeal).fontSize(8.5).font('Helvetica-Bold').text('ACCEPTED PAYMENT MODES :', 55, y + 8);
+  doc.fillColor(darkText).fontSize(8).font('Helvetica').text('Bank Transfer (NEFT / RTGS)  |  UPI (GPay / PhonePe / Paytm)  |  Cheque / Net Banking', 190, y + 8, { width: 300 });
 
-  // ── 4. PROJECT TIMELINE & SUPPORT COVERAGE CARD ────────────────────────────
+  doc.fillColor(primaryTeal).fontSize(8.5).font('Helvetica-Bold').text('CONTACT FOR INVOICING :', 55, y + 24);
+  doc.fillColor(mutedText).fontSize(8).font('Helvetica').text('Sales@dungatechnologies.com  |  Phone: +91 8121923831', 190, y + 24, { width: 300 });
+
+  y += paymentModeCardH + 10;
+
+  // ── 6. PROJECT TIMELINE & SUPPORT COVERAGE CARD ────────────────────────────
+  ensureSpace(50);
   const deliveryTime = project.estimatedDeliveryTime || (project.deadline ? `${Math.ceil((new Date(project.deadline).getTime() - new Date().getTime()) / (1000 * 3600 * 24))} Days` : '30 - 45 Working Days');
   const supportPeriod = project.supportPeriod || '3 Months Included';
 
-  // Calculate dynamic card height to accommodate multi-line support maintenance descriptions
   const suppH = doc.heightOfString(`Support & Maintenance  :  ${supportPeriod}`, { width: 325 });
   const timelineCardH = Math.max(54, 36 + suppH + 10);
 
   doc.rect(45, y, 450, timelineCardH).fillAndStroke('#fff7ed', '#fed7aa');
-
   doc.fillColor(accentOrange).fontSize(9).font('Helvetica-Bold').text('PROJECT TIMELINE & SUPPORT COVERAGE', 55, y + 8);
-  
+
   // Line 1: Delivery Time
   doc.fillColor(primaryTeal).fontSize(8.5).font('Helvetica-Bold').text('Estimated Delivery Time', 55, y + 22, { width: 110 });
   doc.fillColor(darkText).fontSize(8.5).font('Helvetica-Bold').text(`:  ${deliveryTime}`, 165, y + 22, { width: 100 });
 
-  // Line 2: Support & Maintenance (Spans across width 325pt so long details fit cleanly)
+  // Line 2: Support & Maintenance
   doc.fillColor(primaryTeal).fontSize(8.5).font('Helvetica-Bold').text('Support & Maintenance', 55, y + 36, { width: 110 });
   doc.fillColor(darkText).fontSize(8.5).font('Helvetica').text(`:  ${supportPeriod}`, 165, y + 36, { width: 325 });
 
   y += timelineCardH + 14;
 
-  // ── 5. TERMS & CONDITIONS AND NOTE ───────────────────────────────────────
+  // ── 7. TERMS & CONDITIONS AND NOTE ───────────────────────────────────────
+  ensureSpace(80);
   doc.fillColor(primaryTeal).fontSize(9).font('Helvetica-Bold').text('TERMS & CONDITIONS', 45, y);
   doc.fillColor(primaryTeal).fontSize(9).font('Helvetica-Bold').text('NOTE', 320, y);
   y += 12;
@@ -276,7 +327,7 @@ function renderEstimationQuotationPdf(doc: any, project: any) {
   const tcLines = [
     '1. The quoted amount is applicable for the specified project scope.',
     '2. Advance payment of 50% is required before commencement of development.',
-    `3. Remaining balance amount of Rs. ${balanceAmount.toLocaleString('en-IN')} is payable upon delivery.`,
+    `3. Remaining balance amount of Rs. ${balanceAmount.toLocaleString('en-IN')} is payable upon milestone delivery.`,
     '4. Any additional features requested outside agreed scope will be quoted separately.',
     '5. Service commencement & delivery timeline starts after advance payment confirmation.',
   ];
