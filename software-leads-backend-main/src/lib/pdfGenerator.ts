@@ -242,6 +242,68 @@ function renderEstimationQuotationPdf(doc: any, project: any) {
 
   y += totalRowH + 12;
 
+  // ── DETAILED SCOPE OF WORK (POINT-WISE MODULE BREAKDOWN) ──────────────────
+  const hasWeb = Array.isArray(project.webOverview) && project.webOverview.length > 0;
+  const hasApp = Array.isArray(project.appOverview) && project.appOverview.length > 0;
+  const hasAdmin = Array.isArray(project.adminOverview) && project.adminOverview.length > 0;
+
+  if (hasWeb || hasApp || hasAdmin) {
+    ensureSpace(45);
+    doc.rect(45, y, 450, 18).fill(primaryTeal);
+    doc.fillColor('#ffffff').fontSize(8.5).font('Helvetica-Bold').text('PROJECT SCOPE & DETAILED FEATURE BREAKDOWN', 53, y + 4, { lineBreak: false });
+    y += 24;
+
+    // 1. Web Application Scope
+    if (hasWeb) {
+      ensureSpace(35);
+      doc.fillColor(primaryTeal).fontSize(9).font('Helvetica-Bold').text('WEB APPLICATION & DASHBOARD SCOPE:', 45, y);
+      y += 14;
+
+      project.webOverview.forEach((item: string) => {
+        const bulletText = `•  ${item}`;
+        const itemH = doc.heightOfString(bulletText, { width: 440 });
+        ensureSpace(itemH + 4);
+        doc.fillColor(darkText).fontSize(8).font('Helvetica').text(bulletText, 55, y, { width: 440 });
+        y += itemH + 3;
+      });
+      y += 6;
+    }
+
+    // 2. Mobile Application Scope
+    if (hasApp) {
+      ensureSpace(35);
+      doc.fillColor(accentOrange).fontSize(9).font('Helvetica-Bold').text('MOBILE APPLICATION SCOPE (iOS & ANDROID):', 45, y);
+      y += 14;
+
+      project.appOverview.forEach((item: string) => {
+        const bulletText = `•  ${item}`;
+        const itemH = doc.heightOfString(bulletText, { width: 440 });
+        ensureSpace(itemH + 4);
+        doc.fillColor(darkText).fontSize(8).font('Helvetica').text(bulletText, 55, y, { width: 440 });
+        y += itemH + 3;
+      });
+      y += 6;
+    }
+
+    // 3. Admin Portal Scope
+    if (hasAdmin) {
+      ensureSpace(35);
+      doc.fillColor(primaryTeal).fontSize(9).font('Helvetica-Bold').text('ADMIN PORTAL & SYSTEM SECURITY SCOPE:', 45, y);
+      y += 14;
+
+      project.adminOverview.forEach((item: string) => {
+        const bulletText = `•  ${item}`;
+        const itemH = doc.heightOfString(bulletText, { width: 440 });
+        ensureSpace(itemH + 4);
+        doc.fillColor(darkText).fontSize(8).font('Helvetica').text(bulletText, 55, y, { width: 440 });
+        y += itemH + 3;
+      });
+      y += 6;
+    }
+
+    y += 8;
+  }
+
   // ── 4. MILESTONE PAYMENT CHUNKS BREAKDOWN ─────────────────────────────────
   ensureSpace(70);
   const advanceAmount = Number(project.advancePayment || Math.round(finalTotal * 0.5));
