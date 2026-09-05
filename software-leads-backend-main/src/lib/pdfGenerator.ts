@@ -79,13 +79,8 @@ function renderEstimationQuotationPdf(doc: any, project: any) {
 
   drawLetterheadBackground(doc);
 
-  // Top-Right Header Meta Block
   const estNumber = project.applicationNumber || project.projectNumber || `DT/EST/${new Date().getFullYear()}/${(project.id || '').substring(0, 5).toUpperCase()}`;
-  doc.fillColor(primaryTeal).fontSize(9).font('Helvetica-Bold').text('ESTIMATION No.  :', 250, 48, { width: 110, align: 'right' });
-  doc.fillColor(darkText).fontSize(9).font('Helvetica-Bold').text(estNumber, 365, 48, { width: 130, align: 'left' });
-
-  doc.fillColor(primaryTeal).fontSize(9).font('Helvetica-Bold').text('DATE  :', 250, 63, { width: 110, align: 'right' });
-  doc.fillColor(darkText).fontSize(9).font('Helvetica').text(formatDate(project.createdAt || new Date()), 365, 63, { width: 130, align: 'left' });
+  const estDateStr = formatDate(project.createdAt || new Date());
 
   let y = 145;
 
@@ -100,12 +95,22 @@ function renderEstimationQuotationPdf(doc: any, project: any) {
     }
   };
 
-  // Main Document Header Title
-  doc.fillColor(primaryTeal).fontSize(16).font('Helvetica-Bold').text('ESTIMATION / QUOTATION', 45, y, { lineBreak: false });
-  y += 20;
+  // Main Document Header Title (Left Side) & Meta Info (Right Side - Parallel)
+  doc.fillColor(primaryTeal).fontSize(15).font('Helvetica-Bold').text('ESTIMATION / QUOTATION', 45, y, { lineBreak: false });
+  
+  // Parallel Estimation No. (Right Side)
+  doc.fillColor(primaryTeal).fontSize(8.5).font('Helvetica-Bold').text('ESTIMATION No.  :', 270, y + 2, { width: 110, align: 'right' });
+  doc.fillColor(darkText).fontSize(8.5).font('Helvetica-Bold').text(estNumber, 385, y + 2, { width: 110, align: 'left' });
+
+  // Subtitle (Left Side)
   const projectTitle = (project.projectName || project.serviceType || 'SOFTWARE DEVELOPMENT SERVICES').toUpperCase();
-  doc.fillColor(darkText).fontSize(10).font('Helvetica-Bold').text(`FOR ${projectTitle}`, 45, y, { width: 440, height: 14, lineBreak: false, ellipsis: true });
-  y += 14;
+  doc.fillColor(darkText).fontSize(9.5).font('Helvetica-Bold').text(`FOR ${projectTitle}`, 45, y + 18, { width: 220, height: 14, lineBreak: false, ellipsis: true });
+
+  // Parallel Date (Right Side)
+  doc.fillColor(primaryTeal).fontSize(8.5).font('Helvetica-Bold').text('DATE  :', 270, y + 18, { width: 110, align: 'right' });
+  doc.fillColor(darkText).fontSize(8.5).font('Helvetica').text(estDateStr, 385, y + 18, { width: 110, align: 'left' });
+
+  y += 34;
 
   // Orange underline accent bar
   doc.rect(45, y, 220, 2.5).fill(accentOrange);
