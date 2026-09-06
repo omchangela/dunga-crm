@@ -663,6 +663,17 @@ export default function CustomerDetailPage() {
                       type="button"
                       onClick={() => updateForm({ status: st })}
                       className={`py-2 px-3 text-xs font-bold rounded-xl border transition ${
+                        projForm.status === st
+                          ? "bg-blue-600 border-blue-600 text-white shadow-sm"
+                          : "bg-white border-slate-200/80 text-slate-700 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300 hover:bg-slate-50"
+                      }`}
+                    >
+                      {st}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
               {/* PROJECT OVERVIEW — fully dynamic sections */}
               <div className="space-y-3 border-t border-slate-200/60 dark:border-slate-800 pt-4">
                 <div className="flex items-center justify-between">
@@ -903,9 +914,7 @@ export default function CustomerDetailPage() {
               </span>
               <span className="inline-flex items-center gap-1.5 rounded-full bg-blue-50 border border-blue-200 dark:bg-blue-950/40 dark:border-blue-800 px-3 py-1 text-xs font-extrabold text-blue-700 dark:text-blue-300">
                 <Layers className="h-3 w-3" />
-                {projForm.overviewWeb.filter((p) => p.trim()).length +
-                  projForm.overviewApp.filter((p) => p.trim()).length +
-                  projForm.overviewAdmin.filter((p) => p.trim()).length} overview
+                {projForm.overviewSections.reduce((sum, s) => sum + s.items.filter((i) => i.trim()).length, 0)} overview
               </span>
               {projForm.timelines.length > 0 && (
                 <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-50 border border-amber-200 dark:bg-amber-950/40 dark:border-amber-800 px-3 py-1 text-xs font-extrabold text-amber-700 dark:text-amber-300">
