@@ -291,6 +291,10 @@ export const getProject = async (req: Request, res: Response) => {
                     email:             true,
                     applicationNumber: true
                 }
+            },
+            transactions: {
+                where: { source: { not: 'SUBSCRIPTION' } },
+                orderBy: { paymentDate: 'asc' }
             }
         }
     })
@@ -302,12 +306,17 @@ export const getProject = async (req: Request, res: Response) => {
 
     const costHistory      = (project.costHistory as any[]) || []
     const totalProjectCost = calculateTotal(project.budget, costHistory)
+    const transactions     = (project as any).transactions || []
+    const totalPaid        = transactions.reduce((sum: number, t: any) => sum + (parseFloat(t.amount) || 0), 0)
+    const remainingBalance = Math.max(0, totalProjectCost - totalPaid)
 
     res.status(200).json({
         success: true,
         data: {
             ...project,
-            totalProjectCost
+            totalProjectCost,
+            totalPaid,
+            remainingBalance
         }
     })
 }
@@ -1013,7 +1022,11 @@ export const getPaymentReceiptPdf = async (req: Request, res: Response) => {
     const project = await prisma.project.findUnique({
         where: { id },
         include: {
-            customer: true
+            customer: true,
+            transactions: {
+                where: { source: { not: 'SUBSCRIPTION' } },
+                orderBy: { paymentDate: 'asc' }
+            }
         }
     })
 
@@ -1023,30 +1036,60 @@ export const getPaymentReceiptPdf = async (req: Request, res: Response) => {
     }
 
     const payments = (project.payments as any[]) || []
-    const selectedPay = payments[payIndex] || payments[0] || { description: 'Project Payment', amount: project.budget }
+    if (payments.length === 0) {
+        res.status(400).json({ success: false, message: 'No payments configured for this project' })
+        return
+    }
+
+    const safeIndex = Math.min(Math.max(0, payIndex), payments.length - 1)
+    const selectedPay = payments[safeIndex]
+    const itemAmount = parseFloat(selectedPay?.amount) || 0
+
+    // Compute cumulative amount required to have paid for this item
+    let cumulativeNeeded = 0
+    for (let i = 0; i <= safeIndex; i++) {
+        cumulativeNeeded += (parseFloat(payments[i]?.amount) || 0)
+    }
 
     const costHistory = (project.costHistory as any[]) || []
     const totalBudget = calculateTotal(project.budget, costHistory)
 
-    const totalPaid = payments.reduce((sum, p) => sum + (parseFloat(p.amount) || 0), 0)
+    // Real total paid from transactions
+    const transactions = (project as any).transactions || []
+    const totalPaid = transactions.reduce((sum: number, t: any) => sum + (parseFloat(t.amount) || 0), 0)
     const remainingBalance = Math.max(0, totalBudget - totalPaid)
 
-    const receiptNo = `REC-${new Date().toISOString().slice(0,10).replace(/-/g,'')}-${(project.id || '').substring(0,4).toUpperCase()}-${payIndex + 1}`
+    // If item has amount > 0 and totalPaid is less than the cumulative required, it's not paid yet!
+    if (itemAmount > 0 && totalPaid < cumulativeNeeded) {
+        res.status(400).json({
+            success: false,
+            message: `Receipt is only available after payment is completed. (Received: ₹${totalPaid.toLocaleString('en-IN')} / Needed: ₹${cumulativeNeeded.toLocaleString('en-IN')})`
+        })
+        return
+    }
+
+    const latestTxn = transactions.length > 0 ? transactions[transactions.length - 1] : null
+    const receiptNo = latestTxn?.id
+        ? 'REC-' + latestTxn.id.split('-')[0].toUpperCase()
+        : `REC-${new Date().toISOString().slice(0,10).replace(/-/g,'')}-${(project.id || '').substring(0,4).toUpperCase()}-${safeIndex + 1}`
 
     try {
         const pdfBuffer = await buildPaymentReceiptPdfBuffer({
             receiptNo,
-            date: project.updatedAt || project.createdAt,
+            date: latestTxn?.paymentDate || project.updatedAt || project.createdAt,
             customerName: project.customer?.fullName || 'Customer',
             customerPhone: project.customer?.phone || undefined,
             customerEmail: project.customer?.email || undefined,
             applicationNumber: project.customer?.applicationNumber,
             projectName: project.projectName,
-            paymentDescription: selectedPay.description || `Payment Item #${payIndex + 1}`,
-            amountPaid: parseFloat(selectedPay.amount) || totalPaid || project.budget,
+            paymentDescription: selectedPay?.description || `Payment Item #${safeIndex + 1}`,
+            amountPaid: itemAmount || totalPaid,
             totalBudget,
             totalPaid,
-            remainingBalance
+            remainingBalance,
+            paymentMethod: latestTxn?.paymentMethod || 'Bank Transfer',
+            transactionId: latestTxn?.transactionId || undefined,
+            note: latestTxn?.note || undefined,
         })
 
         const base64Data = pdfBuffer.toString('base64')

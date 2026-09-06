@@ -889,6 +889,7 @@ export async function buildPaymentReceiptPdfBuffer(receiptData: {
   customerPhone?: string;
   customerEmail?: string;
   applicationNumber?: string;
+  projectId?: string;
   projectName: string;
   paymentDescription: string;
   amountPaid: number;
@@ -909,6 +910,7 @@ export async function buildPaymentReceiptPdfBuffer(receiptData: {
     note: receiptData.note || null,
     milestoneDescription: receiptData.paymentDescription || null,
     project: {
+      id: receiptData.projectId || receiptData.receiptNo || 'project',
       projectName: receiptData.projectName,
       serviceType: 'Software Development',
       totalAmount: Number(receiptData.totalBudget || 0),

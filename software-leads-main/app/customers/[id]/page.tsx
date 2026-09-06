@@ -1025,24 +1025,51 @@ export default function CustomerDetailPage() {
                       {/* Payments */}
                       {p.payments && p.payments.length > 0 && (
                         <ProjSection title="Payment Component Breakdown" icon={<Wallet className="h-3.5 w-3.5 text-emerald-500" />} count={p.payments.length} {...sec("payments")}>
-                          <div className="grid gap-2 sm:grid-cols-2">
-                            {p.payments.map((row: PaymentItem, i: number) => (
-                              <div key={i} className="rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 px-3 py-2 flex items-center justify-between gap-2">
-                                <span className="text-xs font-bold text-emerald-800 dark:text-emerald-200 truncate">{row.description || "Payment"}</span>
-                                <div className="flex items-center gap-2 shrink-0">
-                                  <span className="text-xs font-extrabold text-emerald-700 dark:text-emerald-300">₹{Number(row.amount || 0).toLocaleString("en-IN")}</span>
-                                  <button
-                                    type="button"
-                                    onClick={() => handleDownloadReceiptPdf(p.id, i)}
-                                    className="inline-flex items-center gap-1 rounded-lg border border-emerald-300 bg-white px-2 py-0.5 text-[10px] font-bold text-emerald-700 hover:bg-emerald-100 dark:bg-emerald-900 dark:text-emerald-200 transition"
-                                    title="Download Payment Receipt PDF"
-                                  >
-                                    <FileText className="h-3 w-3" /> Receipt
-                                  </button>
-                                </div>
-                              </div>
-                            ))}
-                          </div>
+                            {(() => {
+                              const pTxns = (p.transactions || []).filter((t: any) => t.source !== "SUBSCRIPTION");
+                              const pTotalPaid = pTxns.reduce((s: number, t: any) => s + (Number(t.amount) || 0), 0);
+                              let rSum = 0;
+                              return p.payments.map((row: PaymentItem, i: number) => {
+                                const rowAmt = Number(row.amount || 0);
+                                const pSum = rSum;
+                                rSum += rowAmt;
+                                const isRowPaid = rowAmt === 0 || pTotalPaid >= rSum;
+                                const isRowPartial = !isRowPaid && pTotalPaid > pSum;
+                                return (
+                                  <div key={i} className="rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 px-3 py-2 flex items-center justify-between gap-2">
+                                    <span className="text-xs font-bold text-emerald-800 dark:text-emerald-200 truncate">{row.description || "Payment"}</span>
+                                    <div className="flex items-center gap-2 shrink-0">
+                                      <span className="text-xs font-extrabold text-emerald-700 dark:text-emerald-300">₹{rowAmt.toLocaleString("en-IN")}</span>
+                                      {isRowPaid ? (
+                                        <>
+                                          <span className="rounded-full bg-emerald-100 dark:bg-emerald-900/60 px-2 py-0.5 text-[9px] font-bold uppercase text-emerald-700 dark:text-emerald-300">
+                                            {rowAmt === 0 ? "Free" : "Paid"}
+                                          </span>
+                                          {rowAmt > 0 && (
+                                            <button
+                                              type="button"
+                                              onClick={() => handleDownloadReceiptPdf(p.id, i)}
+                                              className="inline-flex items-center gap-1 rounded-lg border border-emerald-300 bg-white px-2 py-0.5 text-[10px] font-bold text-emerald-700 hover:bg-emerald-100 dark:bg-emerald-900 dark:text-emerald-200 transition"
+                                              title="Download Payment Receipt PDF"
+                                            >
+                                              <FileText className="h-3 w-3" /> Receipt
+                                            </button>
+                                          )}
+                                        </>
+                                      ) : isRowPartial ? (
+                                        <span className="rounded-full bg-amber-100 dark:bg-amber-900/60 px-2 py-0.5 text-[9px] font-bold uppercase text-amber-700 dark:text-amber-300">
+                                          Partial
+                                        </span>
+                                      ) : (
+                                        <span className="rounded-full bg-slate-200 dark:bg-slate-800 px-2 py-0.5 text-[9px] font-bold uppercase text-slate-600 dark:text-slate-400">
+                                          Pending
+                                        </span>
+                                      )}
+                                    </div>
+                                  </div>
+                                );
+                              });
+                            })()}
                         </ProjSection>
                       )}
 

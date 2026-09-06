@@ -6,11 +6,11 @@ import Link from "next/link";
 import {
   ArrowLeft, User, Phone, Mail, FolderKanban, Layers,
   Hash, CalendarDays, DollarSign, Tag, Pencil, X, Code2, Check, CheckSquare,
-  Plus, Trash2, IndianRupee, FileText, Loader2, Eye, ExternalLink, ArrowRight, CheckCircle2,
+  Plus, Trash2, IndianRupee, FileText, Loader2, Eye, ExternalLink, ArrowRight, CheckCircle2, Clock,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { DetailSkeleton } from "@/components/ui/skeleton";
-import { fetchProject, projectsApi, fetchDevelopers } from "@/lib/api";
+import { fetchProject, projectsApi, fetchDevelopers, financeApi } from "@/lib/api";
 import { PdfViewerModal } from "@/components/shared/pdf-viewer-modal";
 import { e as toEnum } from "@/lib/enum-maps";
 import { formatCurrency, formatDate } from "@/lib/utils";
@@ -90,6 +90,7 @@ export default function ProjectDetailPage() {
   } | null>(null);
   const projectPdfIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const [viewer, setViewer]   = useState<{ url: string; title: string } | null>(null);
+  const [financeLedger, setFinanceLedger]   = useState<any>(null);
 
   useEffect(() => () => {
     if (projectPdfIntervalRef.current) clearInterval(projectPdfIntervalRef.current);
@@ -106,6 +107,7 @@ export default function ProjectDetailPage() {
         setSelectedDevIds(found.developers ?? []);
         setFeatureItems(found.featureItems ?? []);
       }
+      financeApi.projectLedger(id).then(setFinanceLedger).catch(() => setFinanceLedger(null));
     } catch {
       setProject(null);
     } finally {
@@ -574,6 +576,14 @@ export default function ProjectDetailPage() {
         const history   = project.costHistory ?? [];
         const featTotal = history.reduce((s: number, c: any) => s + Number(c.amount), 0);
         const total     = base + featTotal;
+
+        // Actual paid amount from real recorded transactions
+        const projectTxns = (financeLedger?.history ?? project.transactions ?? []).filter((t: any) => t.source !== "SUBSCRIPTION");
+        const totalPaid = Number(financeLedger?.summary?.totalPaid ?? project.totalPaid ?? projectTxns.reduce((s: number, t: any) => s + Number(t.amount || 0), 0));
+        const remaining = Math.max(0, total - totalPaid);
+
+        let cumulative = 0;
+
         return (
           <div className="rounded-3xl border border-slate-200/80 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900 space-y-6">
             <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-4">
@@ -583,29 +593,69 @@ export default function ProjectDetailPage() {
                 </h2>
                 <p className="mt-0.5 text-xs text-slate-500">Overview of project cost, feature additions, and payments</p>
               </div>
+              <Link
+                href={`/finances/${project.id}`}
+                className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-100 dark:border-slate-800 dark:bg-slate-800 dark:text-slate-300 transition"
+              >
+                <ExternalLink className="h-3.5 w-3.5 text-indigo-500" />
+                Finance Ledger
+              </Link>
             </div>
 
             <div className="space-y-4">
               {project.payments && project.payments.length > 0 && (
                 <div className="space-y-2">
-                  <p className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Payment Breakdown</p>
+                  <div className="flex items-center justify-between">
+                    <p className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Payment Breakdown</p>
+                    <span className="text-xs font-semibold text-slate-500">
+                      Paid: <strong className="text-emerald-600 font-extrabold">{formatCurrency(totalPaid)}</strong> / {formatCurrency(total)}
+                    </span>
+                  </div>
                   <div className="grid gap-2 sm:grid-cols-2">
-                    {project.payments.map((pay: any, i: number) => (
-                      <div key={i} className="flex items-center justify-between rounded-2xl bg-slate-50 dark:bg-slate-800/60 px-4 py-3 border border-slate-100 dark:border-slate-800">
-                        <span className="text-xs font-bold text-slate-700 dark:text-slate-300">{pay.description || "Payment"}</span>
-                        <div className="flex items-center gap-2">
-                          <span className="text-xs font-extrabold text-slate-900 dark:text-white">{formatCurrency(Number(pay.amount || 0))}</span>
-                          <button
-                            onClick={() => handleDownloadReceiptPdf(i)}
-                            className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-bold text-slate-700 shadow-sm hover:border-indigo-500 hover:text-indigo-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 transition-colors"
-                            title="Download Payment Receipt PDF"
-                          >
-                            <FileText className="h-3.5 w-3.5 text-indigo-500" />
-                            Receipt PDF
-                          </button>
+                    {project.payments.map((pay: any, i: number) => {
+                      const amount = Number(pay.amount || 0);
+                      const prevCumulative = cumulative;
+                      cumulative += amount;
+
+                      const isPaid = amount === 0 || totalPaid >= cumulative;
+                      const isPartial = !isPaid && totalPaid > prevCumulative;
+                      const partialPaid = isPartial ? totalPaid - prevCumulative : 0;
+
+                      return (
+                        <div key={i} className="flex items-center justify-between rounded-2xl bg-slate-50 dark:bg-slate-800/60 px-4 py-3 border border-slate-100 dark:border-slate-800">
+                          <span className="text-xs font-bold text-slate-700 dark:text-slate-300 truncate mr-2">{pay.description || "Payment"}</span>
+                          <div className="flex items-center gap-2 shrink-0">
+                            <span className="text-xs font-extrabold text-slate-900 dark:text-white">{formatCurrency(amount)}</span>
+
+                            {isPaid ? (
+                              <>
+                                <span className="inline-flex items-center rounded-full bg-emerald-50 border border-emerald-200 px-2 py-0.5 text-[10px] font-bold uppercase text-emerald-700 dark:bg-emerald-950/40 dark:border-emerald-800 dark:text-emerald-300">
+                                  {amount === 0 ? "Free" : "Paid"}
+                                </span>
+                                {amount > 0 && (
+                                  <button
+                                    onClick={() => handleDownloadReceiptPdf(i)}
+                                    className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-bold text-slate-700 shadow-sm hover:border-indigo-500 hover:text-indigo-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 transition-colors"
+                                    title="Download Payment Receipt PDF"
+                                  >
+                                    <FileText className="h-3.5 w-3.5 text-indigo-500" />
+                                    Receipt PDF
+                                  </button>
+                                )}
+                              </>
+                            ) : isPartial ? (
+                              <span className="inline-flex items-center rounded-full bg-amber-50 border border-amber-200 px-2 py-0.5 text-[10px] font-bold uppercase text-amber-700 dark:bg-amber-950/40 dark:border-amber-800 dark:text-amber-300">
+                                Partial ({formatCurrency(partialPaid)})
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center rounded-full bg-slate-100 border border-slate-200 px-2 py-0.5 text-[10px] font-bold uppercase text-slate-500 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-400">
+                                Pending
+                              </span>
+                            )}
+                          </div>
                         </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 </div>
               )}
@@ -632,6 +682,24 @@ export default function ProjectDetailPage() {
               <div className="flex items-center justify-between rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-600 p-4 text-white shadow-md">
                 <span className="text-xs font-extrabold uppercase tracking-wider">Total Contract Project Cost</span>
                 <span className="text-lg font-black">{formatCurrency(total)}</span>
+              </div>
+
+              {/* Total Paid & Remaining Balance Breakdown */}
+              <div className="grid gap-3 sm:grid-cols-2 pt-2">
+                <div className="flex items-center justify-between rounded-2xl bg-emerald-50/80 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800/60 px-4 py-3">
+                  <div className="flex items-center gap-2">
+                    <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
+                    <span className="text-xs font-bold text-emerald-950 dark:text-emerald-200">Total Liquid Paid</span>
+                  </div>
+                  <span className="text-sm font-extrabold text-emerald-700 dark:text-emerald-300">{formatCurrency(totalPaid)}</span>
+                </div>
+                <div className="flex items-center justify-between rounded-2xl bg-amber-50/80 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/60 px-4 py-3">
+                  <div className="flex items-center gap-2">
+                    <Clock className="h-4 w-4 text-amber-600 shrink-0" />
+                    <span className="text-xs font-bold text-amber-950 dark:text-amber-200">Pending Balance Gap</span>
+                  </div>
+                  <span className="text-sm font-extrabold text-amber-700 dark:text-amber-300">{formatCurrency(remaining)}</span>
+                </div>
               </div>
             </div>
           </div>
