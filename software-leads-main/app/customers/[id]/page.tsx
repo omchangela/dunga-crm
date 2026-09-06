@@ -41,6 +41,8 @@ interface ProjFormState {
   overviewWeb:        string[];
   overviewApp:        string[];
   overviewAdmin:      string[];
+  overviewCustomLabel: string;
+  overviewCustom:     string[];
   payments:           PaymentItem[];
   timelines:          TimelineItem[];
   schedules:          ScheduleItem[];
@@ -54,12 +56,14 @@ const emptyProjForm: ProjFormState = {
   overviewWeb:        [],
   overviewApp:        [],
   overviewAdmin:      [],
+  overviewCustomLabel: "",
+  overviewCustom:     [],
   payments:           [],
   timelines:          [],
   schedules:          [],
 };
 
-type OverviewKey = "overviewWeb" | "overviewApp" | "overviewAdmin";
+type OverviewKey = "overviewWeb" | "overviewApp" | "overviewAdmin" | "overviewCustom";
 
 function cycleSuffix(cycle: string): string {
   if (cycle === "Monthly")   return "/mo";
@@ -339,12 +343,21 @@ export default function CustomerDetailPage() {
     setProjError("");
 
     try {
+      // Merge custom overview items into webOverview prefixed with the custom label
+      const customItems = projForm.overviewCustom
+        .filter(Boolean)
+        .map((item) =>
+          projForm.overviewCustomLabel.trim()
+            ? `[${projForm.overviewCustomLabel.trim()}] ${item}`
+            : item
+        );
+
       await projectsApi.create(customer.id, buildCreateProjectBody({
         projectName:        projForm.projectName,
         projectDescription: projForm.projectDescription,
         projectType:        projForm.projectType,
         status:             projForm.status,
-        overviewWeb:        projForm.overviewWeb,
+        overviewWeb:        [...projForm.overviewWeb, ...customItems],
         overviewApp:        projForm.overviewApp,
         overviewAdmin:      projForm.overviewAdmin,
         payments:           projForm.payments,
@@ -672,6 +685,73 @@ export default function CustomerDetailPage() {
                     )}
                   </div>
                 ))}
+
+                {/* ── CUSTOM SECTION ── */}
+                {projForm.overviewCustom.length > 0 || projForm.overviewCustomLabel ? (
+                  <div className="rounded-2xl border border-indigo-200/80 bg-indigo-50/40 dark:border-indigo-800 dark:bg-indigo-950/20 p-3.5 space-y-2">
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-2 flex-1">
+                        <span className="h-2 w-2 rounded-full bg-indigo-400 shrink-0" />
+                        <input
+                          type="text"
+                          placeholder="Section name (e.g. CRM Panel)"
+                          value={projForm.overviewCustomLabel}
+                          onChange={(e) => updateForm({ overviewCustomLabel: e.target.value })}
+                          className="flex-1 bg-transparent text-xs font-bold text-slate-800 dark:text-slate-200 placeholder:text-slate-400 focus:outline-none border-0"
+                        />
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        <button
+                          type="button"
+                          onClick={() => addOverviewItem("overviewCustom")}
+                          className="flex h-6 w-6 items-center justify-center rounded-full bg-indigo-600 hover:bg-indigo-700 text-white transition shadow-sm"
+                          title="Add item to custom section"
+                        >
+                          <Plus className="h-3.5 w-3.5" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => updateForm({ overviewCustomLabel: "", overviewCustom: [] })}
+                          className="flex h-6 w-6 items-center justify-center rounded-full text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition"
+                          title="Remove custom section"
+                        >
+                          <X className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
+                    </div>
+
+                    {projForm.overviewCustom.length > 0 && (
+                      <div className="space-y-2">
+                        {projForm.overviewCustom.map((desc, index) => (
+                          <div key={`overviewCustom-${index}`} className="flex items-center gap-2">
+                            <Input
+                              placeholder={`${projForm.overviewCustomLabel || "Custom"} description ${index + 1}`}
+                              value={desc}
+                              onChange={(e) => updateOverviewItem("overviewCustom", index, e.target.value)}
+                              className="bg-white dark:bg-slate-800 text-xs font-medium flex-1 h-9 rounded-xl"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => removeOverviewItem("overviewCustom", index)}
+                              className="h-9 w-9 flex items-center justify-center text-slate-400 hover:text-rose-600 rounded-xl hover:bg-rose-50 dark:hover:bg-rose-950/40 shrink-0"
+                            >
+                              <X className="h-4 w-4" />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => updateForm({ overviewCustomLabel: "", overviewCustom: [""] })}
+                    className="flex w-full items-center justify-center gap-2 rounded-2xl border border-dashed border-indigo-300 bg-indigo-50/50 dark:border-indigo-700 dark:bg-indigo-950/20 py-3 text-xs font-bold text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-950/40 transition"
+                  >
+                    <Plus className="h-3.5 w-3.5" />
+                    Add Custom Section
+                  </button>
+                )}
               </div>
 
               {/* PAYMENT */}
