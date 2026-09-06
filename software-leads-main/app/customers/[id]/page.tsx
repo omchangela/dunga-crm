@@ -7,7 +7,7 @@ import {
   ArrowLeft, Mail, Phone, User, Pencil, Plus, Trash2,
   CalendarDays, X, Briefcase, MapPin,
   Layers, Wallet, Clock, CheckCircle2, AlertCircle, Check,
-  ChevronDown, FileText, Code2, Package, ExternalLink, ArrowRight,
+  ChevronDown, FileText, Code2, Package, ExternalLink, ArrowRight, Bookmark,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -157,6 +157,71 @@ export default function CustomerDetailPage() {
   const [openProjSection, setOpenProjSection] = useState<Record<string, boolean>>({});
 
   const [payingSubId, setPayingSubId] = useState<string | null>(null);
+
+  const [hasDraft, setHasDraft] = useState(false);
+  const [draftSavedTime, setDraftSavedTime] = useState<string | null>(null);
+
+  const draftKey = id ? `dunga_proj_draft_${id}` : "dunga_proj_draft";
+
+  // Check for saved draft on load
+  useEffect(() => {
+    if (!id) return;
+    try {
+      const saved = localStorage.getItem(draftKey);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed?.data) {
+          setHasDraft(true);
+          if (parsed.savedAt) {
+            setDraftSavedTime(new Date(parsed.savedAt).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" }));
+          }
+        }
+      }
+    } catch (e) {}
+  }, [id, draftKey]);
+
+  function handleSaveToDraft() {
+    try {
+      localStorage.setItem(draftKey, JSON.stringify({
+        data: projForm,
+        savedAt: new Date().toISOString(),
+      }));
+      setHasDraft(true);
+      const timeStr = new Date().toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" });
+      setDraftSavedTime(timeStr);
+      showToast("Draft saved successfully. You can continue editing anytime.");
+    } catch (e) {
+      showToast("Failed to save draft.");
+    }
+  }
+
+  function handleDiscardDraft() {
+    try {
+      localStorage.removeItem(draftKey);
+      setHasDraft(false);
+      setDraftSavedTime(null);
+      setProjForm(emptyProjForm);
+      setProjError("");
+      showToast("Draft discarded.");
+    } catch (e) {}
+  }
+
+  function handleOpenAddProj() {
+    try {
+      const saved = localStorage.getItem(draftKey);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed?.data) {
+          setProjForm(parsed.data);
+          setHasDraft(true);
+          if (parsed.savedAt) {
+            setDraftSavedTime(new Date(parsed.savedAt).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" }));
+          }
+        }
+      }
+    } catch (e) {}
+    setShowAddProj(true);
+  }
 
   const toggleProject = (key: string) =>
     setExpandedProjects((prev) => ({ ...prev, [key]: !prev[key] }));
@@ -400,6 +465,11 @@ export default function CustomerDetailPage() {
         timelines:          projForm.timelines,
         schedules:          projForm.schedules,
       }));
+      try {
+        localStorage.removeItem(draftKey);
+        setHasDraft(false);
+        setDraftSavedTime(null);
+      } catch (e) {}
       setProjForm(emptyProjForm);
       setShowAddProj(false);
       await load();
@@ -589,9 +659,16 @@ export default function CustomerDetailPage() {
             <p className="mt-0.5 text-xs text-slate-500">Capture scope, estimation, timeline, and deliverables for {customer.fullName}.</p>
           </div>
           {!showAddProj && (
-            <Button size="sm" onClick={() => setShowAddProj(true)} className="rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs">
-              <Plus className="h-4 w-4 mr-1" /> Add Project Section
-            </Button>
+            <div className="flex items-center gap-2">
+              {hasDraft && (
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-50 border border-amber-200 px-3 py-1 text-xs font-bold text-amber-700 dark:bg-amber-950/40 dark:border-amber-800 dark:text-amber-300">
+                  <Bookmark className="h-3.5 w-3.5 text-amber-600" /> Draft Available
+                </span>
+              )}
+              <Button size="sm" onClick={handleOpenAddProj} className="rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs">
+                <Plus className="h-4 w-4 mr-1" /> Add Project Section
+              </Button>
+            </div>
           )}
         </div>
 
@@ -605,12 +682,28 @@ export default function CustomerDetailPage() {
               </div>
               <button
                 type="button"
-                onClick={() => { setShowAddProj(false); setProjForm(emptyProjForm); setProjError(""); }}
+                onClick={() => { setShowAddProj(false); setProjError(""); }}
                 className="rounded-xl p-1 text-slate-400 hover:bg-slate-200/50"
               >
                 <X className="h-4 w-4" />
               </button>
             </div>
+
+            {hasDraft && (
+              <div className="flex items-center justify-between rounded-2xl bg-indigo-50/80 border border-indigo-200 dark:bg-indigo-950/40 dark:border-indigo-800 px-4 py-2.5 text-xs text-indigo-900 dark:text-indigo-200">
+                <span className="flex items-center gap-2 font-semibold">
+                  <Bookmark className="h-4 w-4 text-indigo-600 dark:text-indigo-400 shrink-0" />
+                  Unsaved draft active {draftSavedTime ? `(saved at ${draftSavedTime})` : ""}
+                </span>
+                <button
+                  type="button"
+                  onClick={handleDiscardDraft}
+                  className="text-xs font-bold text-rose-600 hover:text-rose-700 hover:underline dark:text-rose-400"
+                >
+                  Discard Draft
+                </button>
+              </div>
+            )}
 
             <div className="space-y-4">
               <div className="grid gap-4 sm:grid-cols-2">
@@ -923,17 +1016,39 @@ export default function CustomerDetailPage() {
               )}
             </div>
 
-            <div className="flex justify-end items-center gap-3 pt-2 border-t border-dashed border-slate-200 dark:border-slate-800">
-              <button
-                type="button"
-                onClick={() => { setShowAddProj(false); setProjForm(emptyProjForm); setProjError(""); }}
-                className="text-xs font-bold text-slate-600 dark:text-slate-400 hover:underline"
-              >
-                Cancel
-              </button>
-              <Button type="button" size="sm" onClick={handleAddProject} className="rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs">
-                Save Structural Record
-              </Button>
+            <div className="flex flex-wrap justify-between items-center gap-3 pt-2 border-t border-dashed border-slate-200 dark:border-slate-800">
+              <div>
+                {hasDraft && (
+                  <button
+                    type="button"
+                    onClick={handleDiscardDraft}
+                    className="text-xs font-bold text-rose-500 hover:text-rose-600 hover:underline flex items-center gap-1"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" /> Discard Draft
+                  </button>
+                )}
+              </div>
+              <div className="flex items-center gap-3">
+                <button
+                  type="button"
+                  onClick={() => { setShowAddProj(false); setProjError(""); }}
+                  className="text-xs font-bold text-slate-600 dark:text-slate-400 hover:underline"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSaveToDraft}
+                  className="inline-flex items-center gap-1.5 rounded-xl border border-slate-300 bg-white px-3.5 py-2 text-xs font-bold text-slate-700 shadow-sm hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700 transition"
+                  title="Save current progress as draft"
+                >
+                  <Bookmark className="h-3.5 w-3.5 text-indigo-500" />
+                  Save to Draft
+                </button>
+                <Button type="button" size="sm" onClick={handleAddProject} className="rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs">
+                  Save Structural Record
+                </Button>
+              </div>
             </div>
           </div>
         )}
