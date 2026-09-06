@@ -33,37 +33,30 @@ interface PaymentItem  { description: string; amount: string; }
 interface TimelineItem { description: string; workingDays: string; }
 interface ScheduleItem { description: string; payment: string; }
 
+interface OverviewSection { title: string; items: string[]; }
+
 interface ProjFormState {
-  projectName:        string;
-  projectDescription: string;
-  projectType:        string;
-  status:             string;
-  overviewWeb:        string[];
-  overviewApp:        string[];
-  overviewAdmin:      string[];
-  overviewCustomLabel: string;
-  overviewCustom:     string[];
-  payments:           PaymentItem[];
-  timelines:          TimelineItem[];
-  schedules:          ScheduleItem[];
+  projectName:         string;
+  projectDescription:  string;
+  projectType:         string;
+  status:              string;
+  overviewSections:    OverviewSection[];
+  payments:            PaymentItem[];
+  timelines:           TimelineItem[];
+  schedules:           ScheduleItem[];
 }
 
 const emptyProjForm: ProjFormState = {
-  projectName:        "",
-  projectDescription: "",
-  projectType:        "",
-  status:             "Pending",
-  overviewWeb:        [],
-  overviewApp:        [],
-  overviewAdmin:      [],
-  overviewCustomLabel: "",
-  overviewCustom:     [],
-  payments:           [],
-  timelines:          [],
-  schedules:          [],
+  projectName:         "",
+  projectDescription:  "",
+  projectType:         "",
+  status:              "Pending",
+  overviewSections:    [],
+  payments:            [],
+  timelines:           [],
+  schedules:           [],
 };
 
-type OverviewKey = "overviewWeb" | "overviewApp" | "overviewAdmin" | "overviewCustom";
 
 function cycleSuffix(cycle: string): string {
   if (cycle === "Monthly")   return "/mo";
@@ -197,18 +190,49 @@ export default function CustomerDetailPage() {
     if (projError) setProjError("");
   };
 
-  const addOverviewItem = (key: OverviewKey) =>
-    setProjForm((prev) => ({ ...prev, [key]: [...prev[key], ""] }));
+  // ── Dynamic overview section helpers ──────────────────────────────────────
+  const addOverviewSection = () =>
+    setProjForm((prev) => ({
+      ...prev,
+      overviewSections: [...prev.overviewSections, { title: "", items: [""] }],
+    }));
 
-  const updateOverviewItem = (key: OverviewKey, index: number, value: string) =>
+  const removeOverviewSection = (si: number) =>
+    setProjForm((prev) => ({
+      ...prev,
+      overviewSections: prev.overviewSections.filter((_, i) => i !== si),
+    }));
+
+  const updateOverviewSectionTitle = (si: number, title: string) =>
     setProjForm((prev) => {
-      const arr = [...prev[key]];
-      arr[index] = value;
-      return { ...prev, [key]: arr };
+      const arr = [...prev.overviewSections];
+      arr[si] = { ...arr[si], title };
+      return { ...prev, overviewSections: arr };
     });
 
-  const removeOverviewItem = (key: OverviewKey, index: number) =>
-    setProjForm((prev) => ({ ...prev, [key]: prev[key].filter((_, i) => i !== index) }));
+  const addOverviewSectionItem = (si: number) =>
+    setProjForm((prev) => {
+      const arr = [...prev.overviewSections];
+      arr[si] = { ...arr[si], items: [...arr[si].items, ""] };
+      return { ...prev, overviewSections: arr };
+    });
+
+  const updateOverviewSectionItem = (si: number, ii: number, value: string) =>
+    setProjForm((prev) => {
+      const arr = [...prev.overviewSections];
+      const items = [...arr[si].items];
+      items[ii] = value;
+      arr[si] = { ...arr[si], items };
+      return { ...prev, overviewSections: arr };
+    });
+
+  const removeOverviewSectionItem = (si: number, ii: number) =>
+    setProjForm((prev) => {
+      const arr = [...prev.overviewSections];
+      arr[si] = { ...arr[si], items: arr[si].items.filter((_, i) => i !== ii) };
+      return { ...prev, overviewSections: arr };
+    });
+
 
   const addPayment = () =>
     setProjForm((prev) => ({ ...prev, payments: [...prev.payments, { description: "", amount: "" }] }));
@@ -343,23 +367,35 @@ export default function CustomerDetailPage() {
     setProjError("");
 
     try {
-      // Merge custom overview items into webOverview prefixed with the custom label
-      const customItems = projForm.overviewCustom
-        .filter(Boolean)
-        .map((item) =>
-          projForm.overviewCustomLabel.trim()
-            ? `[${projForm.overviewCustomLabel.trim()}] ${item}`
-            : item
-        );
+      // Map dynamic sections → web/app/admin overview buckets by title keyword
+      const webItems: string[]   = [];
+      const appItems: string[]   = [];
+      const adminItems: string[] = [];
+
+      projForm.overviewSections.forEach((sec) => {
+        const t = sec.title.trim().toLowerCase();
+        const clean = sec.items.map((s) => s.trim()).filter(Boolean);
+        if (!clean.length) return;
+        if (t.includes("web")) {
+          webItems.push(...clean);
+        } else if (t.includes("app")) {
+          appItems.push(...clean);
+        } else if (t.includes("admin")) {
+          adminItems.push(...clean);
+        } else {
+          // Prefix non-standard sections and put in web
+          webItems.push(...clean.map((item) => sec.title.trim() ? `[${sec.title.trim()}] ${item}` : item));
+        }
+      });
 
       await projectsApi.create(customer.id, buildCreateProjectBody({
         projectName:        projForm.projectName,
         projectDescription: projForm.projectDescription,
         projectType:        projForm.projectType,
         status:             projForm.status,
-        overviewWeb:        [...projForm.overviewWeb, ...customItems],
-        overviewApp:        projForm.overviewApp,
-        overviewAdmin:      projForm.overviewAdmin,
+        overviewWeb:        webItems,
+        overviewApp:        appItems,
+        overviewAdmin:      adminItems,
         payments:           projForm.payments,
         timelines:          projForm.timelines,
         schedules:          projForm.schedules,
@@ -627,54 +663,61 @@ export default function CustomerDetailPage() {
                       type="button"
                       onClick={() => updateForm({ status: st })}
                       className={`py-2 px-3 text-xs font-bold rounded-xl border transition ${
-                        projForm.status === st
-                          ? "bg-blue-600 border-blue-600 text-white shadow-sm"
-                          : "bg-white border-slate-200/80 text-slate-700 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300 hover:bg-slate-50"
-                      }`}
-                    >
-                      {st}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* PROJECT OVERVIEW — Web / App / Admin description rows */}
+              {/* PROJECT OVERVIEW — fully dynamic sections */}
               <div className="space-y-3 border-t border-slate-200/60 dark:border-slate-800 pt-4">
-                <label className="text-xs font-extrabold uppercase text-slate-500 tracking-wider block">PROJECT OVERVIEW</label>
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-extrabold uppercase text-slate-500 tracking-wider">PROJECT OVERVIEW</label>
+                </div>
 
-                {([
-                  { key: "overviewWeb"   as OverviewKey, label: "Web",   dot: "bg-blue-400" },
-                  { key: "overviewApp"   as OverviewKey, label: "App",   dot: "bg-emerald-400" },
-                  { key: "overviewAdmin" as OverviewKey, label: "Admin", dot: "bg-purple-400" },
-                ]).map((cat) => (
-                  <div key={cat.key} className="rounded-2xl border border-slate-200/80 bg-white dark:border-slate-800 dark:bg-slate-900 p-3.5 space-y-2">
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs font-bold text-slate-800 dark:text-slate-200 flex items-center gap-2">
-                        <span className={`h-2 w-2 rounded-full ${cat.dot}`} /> {cat.label}
-                      </span>
+                {/* Existing sections */}
+                {projForm.overviewSections.map((sec, si) => (
+                  <div
+                    key={si}
+                    className="rounded-2xl border border-slate-200/80 bg-white dark:border-slate-800 dark:bg-slate-900 overflow-hidden"
+                  >
+                    {/* Section header — editable title */}
+                    <div className="flex items-center gap-2 border-b border-slate-100 dark:border-slate-800 px-3.5 py-2.5">
+                      <span className="h-2 w-2 rounded-full bg-blue-400 shrink-0" />
+                      <input
+                        type="text"
+                        placeholder="Section name (e.g. Web, App, CRM Panel…)"
+                        value={sec.title}
+                        onChange={(e) => updateOverviewSectionTitle(si, e.target.value)}
+                        className="flex-1 bg-transparent text-xs font-bold text-slate-800 dark:text-slate-200 placeholder:text-slate-400 focus:outline-none"
+                        autoFocus={sec.title === ""}
+                      />
                       <button
                         type="button"
-                        onClick={() => addOverviewItem(cat.key)}
-                        className="flex h-6 w-6 items-center justify-center rounded-full bg-blue-600 hover:bg-blue-700 text-white transition shadow-sm"
-                        title={`Add ${cat.label} description`}
+                        onClick={() => addOverviewSectionItem(si)}
+                        className="flex h-6 w-6 items-center justify-center rounded-full bg-blue-600 hover:bg-blue-700 text-white transition shadow-sm shrink-0"
+                        title="Add item"
                       >
                         <Plus className="h-3.5 w-3.5" />
                       </button>
+                      <button
+                        type="button"
+                        onClick={() => removeOverviewSection(si)}
+                        className="flex h-6 w-6 items-center justify-center rounded-full text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition shrink-0"
+                        title="Remove section"
+                      >
+                        <X className="h-3.5 w-3.5" />
+                      </button>
                     </div>
 
-                    {projForm[cat.key].length > 0 && (
-                      <div className="space-y-2">
-                        {projForm[cat.key].map((desc, index) => (
-                          <div key={`${cat.key}-${index}`} className="flex items-center gap-2">
+                    {/* Section items */}
+                    {sec.items.length > 0 && (
+                      <div className="space-y-2 p-3">
+                        {sec.items.map((item, ii) => (
+                          <div key={ii} className="flex items-center gap-2">
                             <Input
-                              placeholder={`${cat.label} description ${index + 1}`}
-                              value={desc}
-                              onChange={(e) => updateOverviewItem(cat.key, index, e.target.value)}
+                              placeholder={`${sec.title || "Section"} description ${ii + 1}`}
+                              value={item}
+                              onChange={(e) => updateOverviewSectionItem(si, ii, e.target.value)}
                               className="bg-slate-50 dark:bg-slate-800 text-xs font-medium flex-1 h-9 rounded-xl"
                             />
                             <button
                               type="button"
-                              onClick={() => removeOverviewItem(cat.key, index)}
+                              onClick={() => removeOverviewSectionItem(si, ii)}
                               className="h-9 w-9 flex items-center justify-center text-slate-400 hover:text-rose-600 rounded-xl hover:bg-rose-50 dark:hover:bg-rose-950/40 shrink-0"
                             >
                               <X className="h-4 w-4" />
@@ -686,72 +729,15 @@ export default function CustomerDetailPage() {
                   </div>
                 ))}
 
-                {/* ── CUSTOM SECTION ── */}
-                {projForm.overviewCustom.length > 0 || projForm.overviewCustomLabel ? (
-                  <div className="rounded-2xl border border-indigo-200/80 bg-indigo-50/40 dark:border-indigo-800 dark:bg-indigo-950/20 p-3.5 space-y-2">
-                    <div className="flex items-center justify-between gap-2">
-                      <div className="flex items-center gap-2 flex-1">
-                        <span className="h-2 w-2 rounded-full bg-indigo-400 shrink-0" />
-                        <input
-                          type="text"
-                          placeholder="Section name (e.g. CRM Panel)"
-                          value={projForm.overviewCustomLabel}
-                          onChange={(e) => updateForm({ overviewCustomLabel: e.target.value })}
-                          className="flex-1 bg-transparent text-xs font-bold text-slate-800 dark:text-slate-200 placeholder:text-slate-400 focus:outline-none border-0"
-                        />
-                      </div>
-                      <div className="flex items-center gap-1.5">
-                        <button
-                          type="button"
-                          onClick={() => addOverviewItem("overviewCustom")}
-                          className="flex h-6 w-6 items-center justify-center rounded-full bg-indigo-600 hover:bg-indigo-700 text-white transition shadow-sm"
-                          title="Add item to custom section"
-                        >
-                          <Plus className="h-3.5 w-3.5" />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => updateForm({ overviewCustomLabel: "", overviewCustom: [] })}
-                          className="flex h-6 w-6 items-center justify-center rounded-full text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition"
-                          title="Remove custom section"
-                        >
-                          <X className="h-3.5 w-3.5" />
-                        </button>
-                      </div>
-                    </div>
-
-                    {projForm.overviewCustom.length > 0 && (
-                      <div className="space-y-2">
-                        {projForm.overviewCustom.map((desc, index) => (
-                          <div key={`overviewCustom-${index}`} className="flex items-center gap-2">
-                            <Input
-                              placeholder={`${projForm.overviewCustomLabel || "Custom"} description ${index + 1}`}
-                              value={desc}
-                              onChange={(e) => updateOverviewItem("overviewCustom", index, e.target.value)}
-                              className="bg-white dark:bg-slate-800 text-xs font-medium flex-1 h-9 rounded-xl"
-                            />
-                            <button
-                              type="button"
-                              onClick={() => removeOverviewItem("overviewCustom", index)}
-                              className="h-9 w-9 flex items-center justify-center text-slate-400 hover:text-rose-600 rounded-xl hover:bg-rose-50 dark:hover:bg-rose-950/40 shrink-0"
-                            >
-                              <X className="h-4 w-4" />
-                            </button>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={() => updateForm({ overviewCustomLabel: "", overviewCustom: [""] })}
-                    className="flex w-full items-center justify-center gap-2 rounded-2xl border border-dashed border-indigo-300 bg-indigo-50/50 dark:border-indigo-700 dark:bg-indigo-950/20 py-3 text-xs font-bold text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-950/40 transition"
-                  >
-                    <Plus className="h-3.5 w-3.5" />
-                    Add Custom Section
-                  </button>
-                )}
+                {/* Add section button */}
+                <button
+                  type="button"
+                  onClick={addOverviewSection}
+                  className="flex w-full items-center justify-center gap-2 rounded-2xl border border-dashed border-blue-300 bg-blue-50/50 dark:border-blue-700 dark:bg-blue-950/20 py-3 text-xs font-bold text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950/40 transition"
+                >
+                  <Plus className="h-3.5 w-3.5" />
+                  Add Section
+                </button>
               </div>
 
               {/* PAYMENT */}
