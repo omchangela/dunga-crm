@@ -94,7 +94,7 @@ function renderReceipt(doc: any, data: ReceiptData) {
   let y = 145
 
   const ensureSpace = (h: number) => {
-    if (y + h > 670) {
+    if (y + h > 635) {
       doc.addPage()
       drawLetterheadBackground(doc)
       y = 145
@@ -307,25 +307,28 @@ function renderReceipt(doc: any, data: ReceiptData) {
     doc.fillColor(accentOrange).fontSize(9).font('Helvetica-Bold')
        .text('ACCOUNT SUMMARY', 55, y + 7)
 
+    // Col 1: Project Total
     doc.fillColor(primaryTeal).fontSize(8.5).font('Helvetica-Bold')
-       .text('Project Total', 55, y + 22, { width: 100 })
+       .text('Project Total', 55, y + 22, { width: 62 })
     doc.fillColor(darkText).fontSize(8.5).font('Helvetica-Bold')
-       .text(`:  ${formatINR(totalAmt)}`, 155, y + 22, { width: 100 })
+       .text(`:  ${formatINR(totalAmt)}`, 117, y + 22, { width: 88, lineBreak: false })
 
+    // Col 2: Total Paid
     doc.fillColor(primaryTeal).fontSize(8.5).font('Helvetica-Bold')
-       .text('Total Paid', 260, y + 22, { width: 80 })
+       .text('Total Paid', 210, y + 22, { width: 52 })
     doc.fillColor(green).fontSize(8.5).font('Helvetica-Bold')
-       .text(`:  ${formatINR(paidAmt)}`, 340, y + 22, { width: 90 })
+       .text(`:  ${formatINR(paidAmt)}`, 262, y + 22, { width: 88, lineBreak: false })
 
+    // Col 3: Balance Due
     if (balance > 0) {
       doc.fillColor(primaryTeal).fontSize(8.5).font('Helvetica-Bold')
-         .text('Balance Due', 435, y + 22, { width: 60, lineBreak: false })
+         .text('Balance Due', 355, y + 22, { width: 62 })
       doc.fillColor(accentOrange).fontSize(8.5).font('Helvetica-Bold')
-         .text(formatINR(balance), 435, y + 32, { width: 55, align: 'right' })
+         .text(`:  ${formatINR(balance)}`, 417, y + 22, { width: 75, lineBreak: false })
     } else {
-      doc.rect(420, y + 16, 70, 16).fill(green)
+      doc.rect(410, y + 17, 75, 17).fill(green)
       doc.fillColor('#ffffff').fontSize(8).font('Helvetica-Bold')
-         .text('FULLY PAID', 420, y + 20, { width: 70, align: 'center' })
+         .text('FULLY PAID', 410, y + 21, { width: 75, align: 'center', lineBreak: false })
     }
 
     y += 40 + 10

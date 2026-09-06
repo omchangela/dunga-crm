@@ -1,6 +1,7 @@
 import PDFDocument from 'pdfkit';
 import fs from 'fs';
 import path from 'path';
+import { generateReceiptPdf } from './generateReceiptPdf';
 
 // Locate letterhead background image
 function getLetterheadPath(): string | null {
@@ -85,7 +86,7 @@ function renderEstimationQuotationPdf(doc: any, project: any) {
   let y = 145;
 
   const ensureSpace = (neededHeight: number) => {
-    if (y + neededHeight > 670) {
+    if (y + neededHeight > 635) {
       doc.addPage();
       drawLetterheadBackground(doc);
       y = 145;
@@ -549,13 +550,10 @@ function renderAgreementPdf(
 
   // Helper function to maintain page breaks gracefully within letterhead bounds
   const ensureSpace = (neededHeight: number) => {
-    if (y + neededHeight > 670) {
+    if (y + neededHeight > 635) {
       doc.addPage();
       drawLetterheadBackground(doc);
-      // Mini Header on subsequent pages
-      doc.fillColor(primaryTeal).fontSize(9).font('Helvetica-Bold').text('DUNGA TECHNOLOGIES — PROJECT DEVELOPMENT AGREEMENT', 140, 48, { width: 325, align: 'right', lineBreak: false });
-      doc.fillColor(mutedText).fontSize(8).font('Helvetica').text(`Ref: ${prefixCode}-${(project.id || '').substring(0, 8).toUpperCase()}`, 140, 60, { width: 325, align: 'right', lineBreak: false });
-      y = 160;
+      y = 145;
     }
   };
 
@@ -653,11 +651,15 @@ function renderAgreementPdf(
 
   // Project Description & Scope
   if (project.description) {
-    ensureSpace(25);
-    doc.fillColor(accentOrange).fontSize(8.5).font('Helvetica-Bold').text('Project Description:', 45, y, { lineBreak: false });
-    y += 10;
-    doc.fillColor(darkText).fontSize(8).font('Helvetica').text(project.description, 45, y, { width: 450 });
-    y += doc.heightOfString(project.description, { width: 450 }) + 6;
+    const descText = String(project.description).trim();
+    if (descText.length > 0) {
+      const descH = doc.heightOfString(descText, { width: 445, lineGap: 1.5 });
+      ensureSpace(descH + 22);
+      doc.fillColor(accentOrange).fontSize(8.5).font('Helvetica-Bold').text('Project Description:', 45, y, { lineBreak: false });
+      y += 12;
+      doc.fillColor(darkText).fontSize(8).font('Helvetica').text(descText, 45, y, { width: 445, lineGap: 1.5 });
+      y += descH + 8;
+    }
   }
 
   // Web/App/Admin features or deliverables
@@ -666,23 +668,23 @@ function renderAgreementPdf(
   const adminList = project.adminOverview || project.overview?.admin || [];
 
   if (webList.length || appList.length || adminList.length || timelines.length) {
-    ensureSpace(20);
+    ensureSpace(25);
     doc.fillColor(primaryTeal).fontSize(8.5).font('Helvetica-Bold').text('Scope of Work & Key Deliverables:', 45, y, { lineBreak: false });
-    y += 10;
+    y += 12;
 
     const renderList = (catTitle: string, items: string[]) => {
       if (!items.length) return;
-      ensureSpace(12);
-      doc.fillColor(darkText).fontSize(8).font('Helvetica-Bold').text(catTitle, 50, y, { lineBreak: false });
-      y += 9;
+      ensureSpace(24);
+      doc.fillColor(darkText).fontSize(8).font('Helvetica-Bold').text(catTitle, 45, y, { lineBreak: false });
+      y += 10;
       items.forEach((it: string) => {
-        const textStr = `• ${it}`;
-        const lineH = doc.heightOfString(textStr, { width: 440 }) + 1;
-        ensureSpace(lineH);
-        doc.fillColor(darkText).fontSize(8).font('Helvetica').text(textStr, 60, y, { width: 440 });
+        const textStr = `•  ${it}`;
+        const lineH = doc.heightOfString(textStr, { width: 435, lineGap: 1.5 }) + 1.5;
+        ensureSpace(lineH + 1);
+        doc.fillColor(darkText).fontSize(8).font('Helvetica').text(textStr, 55, y, { width: 435, lineGap: 1.5 });
         y += lineH;
       });
-      y += 2;
+      y += 4;
     };
 
     renderList('Web Platform Features:', webList);
@@ -690,17 +692,17 @@ function renderAgreementPdf(
     renderList('Admin Dashboard & Backend:', adminList);
 
     if (timelines.length > 0) {
-      ensureSpace(12);
-      doc.fillColor(darkText).fontSize(8).font('Helvetica-Bold').text('Milestone Deliverables Schedule:', 50, y, { lineBreak: false });
-      y += 9;
+      ensureSpace(24);
+      doc.fillColor(darkText).fontSize(8).font('Helvetica-Bold').text('Milestone Deliverables Schedule:', 45, y, { lineBreak: false });
+      y += 10;
       timelines.forEach((t: any) => {
-        const textStr = `• ${t.description || 'Milestone Phase'} (${t.workingDays || 0} Working Days)`;
-        const lineH = doc.heightOfString(textStr, { width: 440 }) + 1;
-        ensureSpace(lineH);
-        doc.fillColor(darkText).fontSize(8).font('Helvetica').text(textStr, 60, y, { width: 440 });
+        const textStr = `•  ${t.description || 'Milestone Phase'} (${t.workingDays || 0} Working Days)`;
+        const lineH = doc.heightOfString(textStr, { width: 435, lineGap: 1.5 }) + 1.5;
+        ensureSpace(lineH + 1);
+        doc.fillColor(darkText).fontSize(8).font('Helvetica').text(textStr, 55, y, { width: 435, lineGap: 1.5 });
         y += lineH;
       });
-      y += 3;
+      y += 4;
     }
   }
 
@@ -888,80 +890,35 @@ export async function buildPaymentReceiptPdfBuffer(receiptData: {
   totalBudget: number;
   totalPaid: number;
   remainingBalance: number;
+  paymentMethod?: string;
+  transactionId?: string;
+  note?: string;
+  schedules?: any[];
 }): Promise<Buffer> {
-  return new Promise((resolve, reject) => {
-    try {
-      const doc = new PDFDocument({ margin: 30, size: 'A4', bufferPages: true });
-      const buffers: Buffer[] = [];
-      doc.on('data', (chunk) => buffers.push(chunk));
-      doc.on('end', () => resolve(Buffer.concat(buffers)));
-
-      const primaryTeal = '#007a87';
-      const accentOrange = '#e05a10';
-      const darkText = '#1e293b';
-      const mutedText = '#64748b';
-
-      drawLetterheadBackground(doc);
-
-      doc.fillColor(primaryTeal).fontSize(15).font('Helvetica-Bold').text('PAYMENT RECEIPT', 140, 48, { width: 325, align: 'right', lineBreak: false });
-      doc.fillColor(accentOrange).fontSize(8.5).font('Helvetica-Bold').text(`Receipt Date: ${formatDate(receiptData.date || new Date())}`, 140, 66, { width: 325, align: 'right', lineBreak: false });
-      doc.fillColor(mutedText).fontSize(8.5).font('Helvetica').text(`Receipt No: ${receiptData.receiptNo}`, 140, 78, { width: 325, align: 'right', lineBreak: false });
-
-      let y = 160;
-
-      // PAID BADGE & CUSTOMER DETAILS
-      doc.rect(45, y, 450, 75).fillAndStroke('#f0fdfa', '#cbd5e1');
-
-      doc.rect(400, y + 10, 80, 22).fill('#10b981');
-      doc.fillColor('#ffffff').fontSize(10).font('Helvetica-Bold').text('PAID', 400, y + 15, { align: 'center', width: 80, lineBreak: false });
-
-      doc.fillColor(primaryTeal).fontSize(10).font('Helvetica-Bold').text('RECEIVED FROM', 57, y + 10, { lineBreak: false });
-      doc.fillColor(darkText).fontSize(11).font('Helvetica-Bold').text(receiptData.customerName, 57, y + 23, { lineBreak: false });
-      doc.fillColor(mutedText).fontSize(8.5).font('Helvetica').text(`Phone: ${receiptData.customerPhone || '—'}  |  Email: ${receiptData.customerEmail || '—'}`, 57, y + 39, { lineBreak: false });
-      if (receiptData.applicationNumber) {
-        doc.text(`App No: ${receiptData.applicationNumber}`, 57, y + 53, { lineBreak: false });
-      }
-
-      y += 90;
-
-      // PAYMENT BREAKDOWN TABLE
-      doc.fillColor(primaryTeal).fontSize(10).font('Helvetica-Bold').text('PAYMENT TRANSACTION DETAILS', 45, y, { lineBreak: false });
-      y += 14;
-
-      doc.rect(45, y, 450, 20).fill(primaryTeal);
-      doc.fillColor('#ffffff').fontSize(8.5).font('Helvetica-Bold').text('Project / Milestone Description', 55, y + 5, { lineBreak: false });
-      doc.text('Amount Received (INR)', 350, y + 5, { align: 'right', width: 135, lineBreak: false });
-      y += 20;
-
-      doc.rect(45, y, 450, 26).fillAndStroke('#ffffff', '#cbd5e1');
-      doc.fillColor(darkText).fontSize(9).font('Helvetica-Bold').text(receiptData.projectName, 55, y + 5, { lineBreak: false });
-      doc.fillColor(mutedText).fontSize(8).font('Helvetica').text(receiptData.paymentDescription || 'Installment Payment', 55, y + 15, { lineBreak: false });
-      doc.fillColor(primaryTeal).fontSize(11).font('Helvetica-Bold').text(formatINR(receiptData.amountPaid), 350, y + 7, { align: 'right', width: 135, lineBreak: false });
-      y += 34;
-
-      // ACCOUNT FINANCIAL SUMMARY
-      doc.rect(45, y, 450, 55).fillAndStroke('#fff7ed', '#ffedd5');
-      doc.fillColor(darkText).fontSize(8.5).font('Helvetica-Bold').text('Total Project Cost:', 57, y + 12, { lineBreak: false });
-      doc.text(formatINR(receiptData.totalBudget), 165, y + 12, { lineBreak: false });
-
-      doc.fillColor(darkText).font('Helvetica-Bold').text('Total Paid to Date:', 57, y + 26, { lineBreak: false });
-      doc.fillColor(primaryTeal).text(formatINR(receiptData.totalPaid), 165, y + 26, { lineBreak: false });
-
-      doc.fillColor(darkText).font('Helvetica-Bold').text('Remaining Balance:', 57, y + 40, { lineBreak: false });
-      doc.fillColor(receiptData.remainingBalance > 0 ? accentOrange : primaryTeal).text(formatINR(receiptData.remainingBalance), 165, y + 40, { lineBreak: false });
-
-      y += 70;
-
-      // STAMP / FOOTER STATEMENT
-      doc.rect(45, y, 450, 45).fillAndStroke('#f0fdfa', '#a7f3d0');
-      doc.fillColor(primaryTeal).fontSize(9).font('Helvetica-Bold').text('Official Computer Generated Receipt', 57, y + 10, { lineBreak: false });
-      doc.fillColor(mutedText).fontSize(8).font('Helvetica').text('This receipt serves as proof of payment received by Dunga Technologies. No physical signature required.', 57, y + 24);
-
-      addFooterToAllPages(doc);
-
-      doc.end();
-    } catch (err) {
-      reject(err);
+  return generateReceiptPdf({
+    receiptNo: receiptData.receiptNo,
+    paymentDate: receiptData.date || new Date(),
+    amount: Number(receiptData.amountPaid || 0),
+    paymentMethod: receiptData.paymentMethod || 'Bank Transfer',
+    transactionId: receiptData.transactionId || null,
+    note: receiptData.note || null,
+    milestoneDescription: receiptData.paymentDescription || null,
+    project: {
+      projectName: receiptData.projectName,
+      serviceType: 'Software Development',
+      totalAmount: Number(receiptData.totalBudget || 0),
+      paidSoFar: Number(receiptData.totalPaid || 0),
+      schedules: (receiptData.schedules || []).map((s: any) => ({
+        description: s.description || s.title,
+        payment: Number(s.payment || s.amount || 0),
+        paid: Number(s.paid || 0),
+        status: s.status,
+      }))
+    },
+    customer: {
+      fullName: receiptData.customerName,
+      phone: receiptData.customerPhone,
+      email: receiptData.customerEmail,
     }
   });
 }
