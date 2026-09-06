@@ -963,6 +963,17 @@ export const financeApi = {
 
   deleteTransaction: (transactionId: string) =>
     request<any>(`/api/finance/${transactionId}`, { method: "DELETE" }),
+
+  generateReceipt: (transactionId: string) =>
+    request<{ success: boolean; message: string; data: { pdfUrl: string; receiptNo: string } }>(
+      `/api/finance/receipt/${transactionId}`
+    ),
+
+  reports: (params: Record<string, string> = {}) =>
+    request<{ success: boolean; data: { transactions: any[]; totalAmount: number; count: number } }>(
+      "/api/finance/reports",
+      { params }
+    ),
 };
 
 /** Normalize delivery-project list response into an array (bare array or {data}/{projects}). */

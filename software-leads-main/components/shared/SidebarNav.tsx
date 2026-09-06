@@ -16,6 +16,7 @@ import {
   CreditCard,
   Calculator,
   Contact,
+  BarChart3,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
@@ -28,6 +29,7 @@ const NAV_ITEMS = [
   { label: "Estimation", href: "/estimation", icon: Calculator      },
   { label: "Projects",   href: "/projects",   icon: FolderKanban    },
   { label: "Finances",      href: "/finances",      icon: Wallet       },
+  { label: "Reports",       href: "/reports",       icon: BarChart3    },
   { label: "Developers",   href: "/developers",   icon: Code2        },
   { label: "Employees",    href: "/employees",    icon: Contact      },
   { label: "Tasks",        href: "/tasks",        icon: CheckSquare  },

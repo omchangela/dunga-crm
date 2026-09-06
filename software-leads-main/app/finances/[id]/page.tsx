@@ -2,7 +2,7 @@
 
 import { useState, useEffect, use } from "react";
 import Link from "next/link";
-import { ArrowLeft, Plus, Pencil, Trash2, IndianRupee, Check, X, ExternalLink, CalendarDays } from "lucide-react";
+import { ArrowLeft, Plus, Pencil, Trash2, IndianRupee, Check, X, ExternalLink, CalendarDays, Receipt, FileText } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -10,6 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { financeApi, fetchProject, fetchSubscriptions, subscriptionsApi } from "@/lib/api";
 import { formatDate } from "@/lib/utils";
 import { Skeleton, ListSkeleton } from "@/components/ui/skeleton";
+import { PdfViewerModal } from "@/components/shared/pdf-viewer-modal";
 
 const PAYMENT_MODES = ["UPI", "Bank Transfer", "Cash", "Cheque", "Other"];
 
@@ -58,6 +59,8 @@ export default function ProjectFinancePage({ params }: { params: Promise<{ id: s
   const [editForm, setEditForm] = useState(emptyForm);
   const [editError, setEditError] = useState("");
   const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [receiptLoading, setReceiptLoading] = useState<string | null>(null);
+  const [pdfViewer, setPdfViewer] = useState<{ url: string; title: string } | null>(null);
 
 async function loadFinanceLedger() {
     try {
@@ -84,6 +87,20 @@ async function loadFinanceLedger() {
   }
 
   useEffect(() => { if (projId) loadFinanceLedger(); }, [projId]);
+
+  async function handleGenerateReceipt(payId: string, amount: number) {
+    setReceiptLoading(payId);
+    try {
+      const res = await financeApi.generateReceipt(payId);
+      if (res?.data?.pdfUrl) {
+        setPdfViewer({ url: res.data.pdfUrl, title: `Receipt ${res.data.receiptNo}` });
+      }
+    } catch (e: any) {
+      showToast("Failed to generate receipt: " + (e?.message || "Unknown error"));
+    } finally {
+      setReceiptLoading(null);
+    }
+  }
 
   // Record a subscription renewal payment and refresh the ledger.
   async function handleMarkPaid() {
@@ -473,6 +490,16 @@ async function loadFinanceLedger() {
                         </div>
                       ) : (
                         <div className="flex shrink-0 items-center gap-1">
+                          <button
+                            onClick={() => handleGenerateReceipt(pay.id, pay.amount)}
+                            disabled={receiptLoading === pay.id}
+                            title="Download Receipt"
+                            className="rounded-lg p-1.5 text-slate-400 hover:bg-emerald-50 hover:text-emerald-600 disabled:opacity-50"
+                          >
+                            {receiptLoading === pay.id
+                              ? <span className="h-3.5 w-3.5 block animate-spin rounded-full border-2 border-current border-t-transparent" />
+                              : <Receipt className="h-3.5 w-3.5" />}
+                          </button>
                           <button onClick={() => startEdit(pay)} title="Edit" className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700">
                             <Pencil className="h-3.5 w-3.5" />
                           </button>
@@ -696,6 +723,15 @@ async function loadFinanceLedger() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* PDF Receipt Viewer */}
+      {pdfViewer && (
+        <PdfViewerModal
+          url={pdfViewer.url}
+          title={pdfViewer.title}
+          onClose={() => setPdfViewer(null)}
+        />
       )}
 
     </div>

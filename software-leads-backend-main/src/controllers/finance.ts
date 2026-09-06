@@ -1,6 +1,7 @@
 import { Request, Response } from 'express'
 import prisma from '../lib/prisma'
 import { z } from 'zod'
+import { generateReceiptPdf } from '../lib/generateReceiptPdf'
 
 // ─── HELPERS ──────────────────────────────────────
 
@@ -419,4 +420,119 @@ export const getFinanceProjects = async (req: Request, res: Response) => {
     })
 
     res.status(200).json(result)
+}
+
+// GENERATE payment receipt PDF
+export const generateReceipt = async (req: Request, res: Response) => {
+
+    const transactionId = req.params.transactionId as string
+
+    const txn = await prisma.financeTransaction.findUnique({
+        where: { id: transactionId },
+        include: {
+            project: {
+                include: {
+                    customer: {
+                        select: { fullName: true, phone: true, email: true }
+                    }
+                }
+            }
+        }
+    })
+
+    if (!txn) {
+        res.status(404).json({ message: 'Transaction not found' })
+        return
+    }
+
+    // generate a short receipt number from the transaction id
+    const receiptNo = 'REC-' + txn.id.split('-')[0].toUpperCase()
+
+    const pdfBuffer = await generateReceiptPdf({
+        receiptNo,
+        paymentDate:   txn.paymentDate,
+        amount:        txn.amount,
+        paymentMethod: txn.paymentMethod,
+        transactionId: txn.transactionId ?? null,
+        note:          txn.note ?? null,
+        project: {
+            id:          txn.project.id,
+            projectName: txn.project.projectName,
+            serviceType: txn.project.serviceType ?? null
+        },
+        customer: txn.project.customer ?? null
+    })
+
+    const base64 = pdfBuffer.toString('base64')
+
+    res.status(200).json({
+        success: true,
+        message: 'Receipt generated successfully',
+        data: {
+            pdfUrl:    `data:application/pdf;base64,${base64}`,
+            receiptNo
+        }
+    })
+}
+
+// PAYMENT REPORTS — date-filtered list
+export const getPaymentReports = async (req: Request, res: Response) => {
+
+    const { filter, from, to } = req.query as Record<string, string>
+
+    const now   = new Date()
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+
+    let startDate: Date | undefined
+    let endDate:   Date | undefined
+
+    if (filter === 'today') {
+        startDate = today
+        endDate   = new Date(today.getTime() + 86_400_000 - 1)
+    } else if (filter === 'yesterday') {
+        startDate = new Date(today.getTime() - 86_400_000)
+        endDate   = new Date(today.getTime() - 1)
+    } else if (filter === 'week') {
+        startDate = new Date(today.getTime() - 6 * 86_400_000)
+        endDate   = new Date(today.getTime() + 86_400_000 - 1)
+    } else if (filter === 'month') {
+        startDate = new Date(now.getFullYear(), now.getMonth(), 1)
+        endDate   = new Date(today.getTime() + 86_400_000 - 1)
+    } else if (from && to) {
+        startDate = new Date(from)
+        endDate   = new Date(new Date(to).getTime() + 86_400_000 - 1)
+    }
+
+    const where: any = {}
+    if (startDate && endDate) {
+        where.paymentDate = { gte: startDate, lte: endDate }
+    }
+
+    const transactions = await prisma.financeTransaction.findMany({
+        where,
+        orderBy: { paymentDate: 'desc' },
+        include: {
+            project: {
+                select: {
+                    id:          true,
+                    projectName: true,
+                    serviceType: true,
+                    customer: {
+                        select: { id: true, fullName: true, phone: true }
+                    }
+                }
+            }
+        }
+    })
+
+    const totalAmount = transactions.reduce((sum, t) => sum + t.amount, 0)
+
+    res.status(200).json({
+        success:    true,
+        data: {
+            transactions,
+            totalAmount,
+            count:     transactions.length
+        }
+    })
 }
