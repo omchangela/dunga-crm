@@ -434,6 +434,10 @@ export const generateReceipt = async (req: Request, res: Response) => {
                 include: {
                     customer: {
                         select: { fullName: true, phone: true, email: true }
+                    },
+                    transactions: {
+                        where:  { source: { not: 'SUBSCRIPTION' } },
+                        select: { amount: true }
                     }
                 }
             }
@@ -445,22 +449,46 @@ export const generateReceipt = async (req: Request, res: Response) => {
         return
     }
 
+    const project    = txn.project
+    const schedules  = normalizeSchedules(project.schedules as any[])
+
+    // total project budget (base + cost history additions)
+    const totalAmount = getProjectTotal(project.budget, project.costHistory as any[])
+
+    // total paid across all project transactions (excluding this txn's source)
+    const paidSoFar = (project.transactions || []).reduce((s: number, t: any) => s + t.amount, 0)
+
+    // find which schedule milestone this payment was allocated to (from allocations JSON)
+    const allocs = (txn.allocations as any[]) || []
+    const milestoneDescription = allocs.length > 0
+        ? allocs.map((a: any) => a.description).filter(Boolean).join(', ')
+        : null
+
     // generate a short receipt number from the transaction id
     const receiptNo = 'REC-' + txn.id.split('-')[0].toUpperCase()
 
     const pdfBuffer = await generateReceiptPdf({
         receiptNo,
-        paymentDate:   txn.paymentDate,
-        amount:        txn.amount,
-        paymentMethod: txn.paymentMethod,
-        transactionId: txn.transactionId ?? null,
-        note:          txn.note ?? null,
+        paymentDate:          txn.paymentDate,
+        amount:               txn.amount,
+        paymentMethod:        txn.paymentMethod,
+        transactionId:        txn.transactionId ?? null,
+        note:                 txn.note          ?? null,
+        milestoneDescription: milestoneDescription,
         project: {
-            id:          txn.project.id,
-            projectName: txn.project.projectName,
-            serviceType: txn.project.serviceType ?? null
+            id:          project.id,
+            projectName: project.projectName,
+            serviceType: project.serviceType ?? null,
+            totalAmount,
+            paidSoFar,
+            schedules:   schedules.map(s => ({
+                description: s.description,
+                payment:     parseFloat(s.payment) || 0,
+                paid:        parseFloat(s.paid)    || 0,
+                status:      s.status
+            }))
         },
-        customer: txn.project.customer ?? null
+        customer: project.customer ?? null
     })
 
     const base64 = pdfBuffer.toString('base64')
