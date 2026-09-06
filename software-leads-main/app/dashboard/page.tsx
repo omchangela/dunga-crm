@@ -22,6 +22,8 @@ import {
   Activity,
   RefreshCw,
   PhoneCall,
+  CreditCard,
+  AlertCircle,
 } from "lucide-react";
 import {
   fetchLeads,
@@ -29,6 +31,7 @@ import {
   fetchAllProjects,
   fetchDevelopers,
   fetchReminders,
+  fetchFinanceProjects,
   remindersApi,
 } from "@/lib/api";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -148,7 +151,8 @@ export default function DashboardPage() {
   const [pendingCountApi, setPendingCountApi] = useState(0);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [activeTab, setActiveTab] = useState<"reminders" | "leads" | "projects">("reminders");
+  const [activeTab, setActiveTab] = useState<"reminders" | "leads" | "projects" | "payments">("reminders");
+  const [financeProjects, setFinanceProjects] = useState<any[]>([]);
   const [completingId, setCompletingId] = useState<string | null>(null);
 
   async function loadData(isRefresh = false) {
@@ -156,7 +160,7 @@ export default function DashboardPage() {
     else setLoading(true);
 
     try {
-      const [leadsRes, custRes, projRes, devs, remRes] = await Promise.all([
+      const [leadsRes, custRes, projRes, devs, remRes, finProjs] = await Promise.all([
         fetchLeads({ status: "ALL", limit: "50000" }),
         fetchCustomers({ limit: "500" }),
         fetchAllProjects({
@@ -165,6 +169,7 @@ export default function DashboardPage() {
         }),
         fetchDevelopers(),
         fetchReminders("ALL"),
+        fetchFinanceProjects().catch(() => []),
       ]);
 
       setLeads(leadsRes.leads || []);
@@ -174,6 +179,7 @@ export default function DashboardPage() {
       setDevelopers(devs || []);
       setReminders(remRes.reminders || []);
       setPendingCountApi(remRes.pendingCount || 0);
+      setFinanceProjects(Array.isArray(finProjs) ? finProjs : []);
     } catch (error) {
       console.error("Failed to load dashboard data:", error);
     } finally {
@@ -242,10 +248,52 @@ export default function DashboardPage() {
     .slice(0, 6);
 
   const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const sevenDaysLater = new Date(today);
+  sevenDaysLater.setDate(today.getDate() + 7);
+
   const upcomingDeadlines = [...projects]
     .filter((p) => p.deadline && p.status !== "Completed" && p.status !== "Cancelled")
     .sort((a, b) => new Date(a.deadline).getTime() - new Date(b.deadline).getTime())
     .slice(0, 5);
+
+  // Upcoming pending/partial payment schedules due within the next 7 days
+  const upcomingPayments: Array<{
+    projectId: string;
+    projectName: string;
+    clientName: string;
+    description: string;
+    amount: number;
+    paid: number;
+    dueDate: string;
+    status: string;
+  }> = [];
+
+  financeProjects.forEach((fp: any) => {
+    const schedules: any[] = fp.schedules ?? [];
+    schedules.forEach((sch: any) => {
+      if (sch.status === "paid") return;
+      if (!sch.dueDate) return;
+      const due = new Date(sch.dueDate);
+      due.setHours(0, 0, 0, 0);
+      if (due >= today && due <= sevenDaysLater) {
+        upcomingPayments.push({
+          projectId: fp.id,
+          projectName: fp.projectName ?? fp.project?.projectName ?? "Project",
+          clientName: fp.customer?.fullName ?? fp.clientName ?? "Client",
+          description: sch.description ?? "Payment",
+          amount: Number(sch.payment ?? 0),
+          paid: Number(sch.paid ?? 0),
+          dueDate: sch.dueDate,
+          status: sch.status ?? "pending",
+        });
+      }
+    });
+  });
+
+  upcomingPayments.sort(
+    (a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime()
+  );
 
   const activeProjects = projects.filter((p) => p.status !== "Completed" && p.status !== "Cancelled");
 
@@ -556,10 +604,10 @@ export default function DashboardPage() {
           </div>
 
           {/* Filter Tabs */}
-          <div className="flex rounded-xl bg-slate-100 p-1 dark:bg-slate-800">
+          <div className="flex flex-wrap rounded-xl bg-slate-100 p-1 dark:bg-slate-800 gap-1">
             <button
               onClick={() => setActiveTab("reminders")}
-              className={`flex items-center gap-1.5 rounded-lg px-4 py-2 text-xs font-bold transition ${
+              className={`flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-bold transition ${
                 activeTab === "reminders"
                   ? "bg-white text-blue-600 shadow-sm dark:bg-slate-900 dark:text-blue-400"
                   : "text-slate-600 hover:text-slate-900 dark:text-slate-400"
@@ -571,7 +619,7 @@ export default function DashboardPage() {
 
             <button
               onClick={() => setActiveTab("leads")}
-              className={`flex items-center gap-1.5 rounded-lg px-4 py-2 text-xs font-bold transition ${
+              className={`flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-bold transition ${
                 activeTab === "leads"
                   ? "bg-white text-blue-600 shadow-sm dark:bg-slate-900 dark:text-blue-400"
                   : "text-slate-600 hover:text-slate-900 dark:text-slate-400"
@@ -583,7 +631,7 @@ export default function DashboardPage() {
 
             <button
               onClick={() => setActiveTab("projects")}
-              className={`flex items-center gap-1.5 rounded-lg px-4 py-2 text-xs font-bold transition ${
+              className={`flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-bold transition ${
                 activeTab === "projects"
                   ? "bg-white text-blue-600 shadow-sm dark:bg-slate-900 dark:text-blue-400"
                   : "text-slate-600 hover:text-slate-900 dark:text-slate-400"
@@ -591,6 +639,23 @@ export default function DashboardPage() {
             >
               <Calendar className="h-3.5 w-3.5" />
               Deadlines ({upcomingDeadlines.length})
+            </button>
+
+            <button
+              onClick={() => setActiveTab("payments")}
+              className={`flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-bold transition ${
+                activeTab === "payments"
+                  ? "bg-white text-violet-600 shadow-sm dark:bg-slate-900 dark:text-violet-400"
+                  : "text-slate-600 hover:text-slate-900 dark:text-slate-400"
+              }`}
+            >
+              <CreditCard className="h-3.5 w-3.5" />
+              Upcoming Payments
+              {upcomingPayments.length > 0 && (
+                <span className="ml-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-violet-600 px-1 text-[10px] font-black text-white">
+                  {upcomingPayments.length}
+                </span>
+              )}
             </button>
           </div>
         </div>
@@ -754,6 +819,135 @@ export default function DashboardPage() {
             </div>
           )}
 
+          {/* TAB 4: UPCOMING PAYMENTS (next 7 days) */}
+          {activeTab === "payments" && (
+            <div className="space-y-3">
+              {upcomingPayments.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-12 text-center">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-violet-50 text-violet-600 dark:bg-violet-950/50">
+                    <CreditCard className="h-6 w-6" />
+                  </div>
+                  <p className="mt-3 text-sm font-bold text-slate-800 dark:text-slate-200">
+                    No Upcoming Payments
+                  </p>
+                  <p className="text-xs text-slate-500">No payment schedules due in the next 7 days.</p>
+                </div>
+              ) : (
+                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                  {upcomingPayments.map((pay, idx) => {
+                    const due = new Date(pay.dueDate);
+                    due.setHours(0, 0, 0, 0);
+                    const daysUntil = Math.ceil(
+                      (due.getTime() - today.getTime()) / 86400000
+                    );
+                    const isDueToday = daysUntil === 0;
+                    const isOverdue = daysUntil < 0;
+                    const remaining = pay.amount - pay.paid;
+                    const isPartial = pay.status === "partial";
+
+                    return (
+                      <div
+                        key={`${pay.projectId}-${idx}`}
+                        className={`group relative flex flex-col justify-between rounded-2xl border p-4 transition-all hover:shadow-md ${
+                          isDueToday
+                            ? "border-violet-200 bg-violet-50/40 dark:border-violet-900/50 dark:bg-violet-950/20"
+                            : isPartial
+                            ? "border-amber-200 bg-amber-50/40 dark:border-amber-900/50 dark:bg-amber-950/20"
+                            : "border-slate-200/80 bg-slate-50/50 dark:border-slate-800 dark:bg-slate-900/50"
+                        }`}
+                      >
+                        <div>
+                          <div className="flex items-start justify-between gap-2">
+                            <span
+                              className={`inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[11px] font-extrabold tracking-wide uppercase ${
+                                isDueToday
+                                  ? "bg-violet-100 text-violet-700 dark:bg-violet-900/60 dark:text-violet-300"
+                                  : isPartial
+                                  ? "bg-amber-100 text-amber-700 dark:bg-amber-900/60 dark:text-amber-300"
+                                  : "bg-blue-100 text-blue-700 dark:bg-blue-900/60 dark:text-blue-300"
+                              }`}
+                            >
+                              <AlertCircle className="h-3 w-3" />
+                              {isDueToday
+                                ? "Due Today"
+                                : isOverdue
+                                ? `${Math.abs(daysUntil)}d Overdue`
+                                : `${daysUntil}d left`}
+                            </span>
+
+                            {isPartial && (
+                              <span className="inline-flex items-center rounded-md bg-amber-100 px-2 py-0.5 text-[10px] font-bold text-amber-700 dark:bg-amber-900/60 dark:text-amber-300">
+                                Partial
+                              </span>
+                            )}
+                          </div>
+
+                          <div className="mt-3">
+                            <Link
+                              href={`/finances/${pay.projectId}`}
+                              className="text-sm font-extrabold text-slate-900 hover:text-violet-600 dark:text-white dark:hover:text-violet-400"
+                            >
+                              {pay.projectName}
+                            </Link>
+                            <p className="mt-0.5 text-[11px] font-medium text-slate-500">
+                              {pay.clientName}
+                            </p>
+                            {pay.description && (
+                              <p className="mt-1.5 line-clamp-2 text-xs text-slate-600 dark:text-slate-400 font-medium">
+                                {pay.description}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+
+                        <div className="mt-4 pt-3 border-t border-slate-200/60 dark:border-slate-800">
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <p className="text-[11px] font-semibold text-slate-400">Amount Due</p>
+                              <p className="text-base font-black text-slate-900 dark:text-white">
+                                {formatCurrency(remaining)}
+                              </p>
+                              {isPartial && (
+                                <p className="text-[10px] text-amber-600 font-bold">
+                                  {formatCurrency(pay.paid)} of {formatCurrency(pay.amount)} paid
+                                </p>
+                              )}
+                            </div>
+                            <Link
+                              href={`/finances/${pay.projectId}`}
+                              className="inline-flex items-center gap-1 rounded-lg border border-violet-200 bg-violet-50 px-2.5 py-1.5 text-xs font-bold text-violet-700 hover:bg-violet-100 dark:border-violet-800 dark:bg-violet-950/50 dark:text-violet-300"
+                            >
+                              <CreditCard className="h-3 w-3" />
+                              Collect
+                            </Link>
+                          </div>
+
+                          {pay.amount > 0 && (
+                            <div className="mt-2">
+                              <div className="h-1.5 w-full overflow-hidden rounded-full bg-slate-200 dark:bg-slate-700">
+                                <div
+                                  className="h-full rounded-full bg-gradient-to-r from-violet-500 to-purple-500 transition-all duration-500"
+                                  style={{ width: `${Math.min(100, Math.round((pay.paid / pay.amount) * 100))}%` }}
+                                />
+                              </div>
+                              <p className="mt-0.5 text-right text-[10px] font-semibold text-slate-400">
+                                {Math.round((pay.paid / pay.amount) * 100)}% collected
+                              </p>
+                            </div>
+                          )}
+
+                          <p className="mt-1 text-[11px] font-semibold text-slate-400">
+                            Due: {formatDate(pay.dueDate)}
+                          </p>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
+
           {/* TAB 3: UPCOMING DEADLINES */}
           {activeTab === "projects" && (
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -834,6 +1028,7 @@ export default function DashboardPage() {
             <Link href="/leads" className="hover:underline">Leads</Link>
             <Link href="/projects" className="hover:underline">Projects</Link>
             <Link href="/finances" className="hover:underline">Finances</Link>
+            <Link href="/finances" className="hover:underline text-violet-600">Payments</Link>
           </div>
         </div>
       </section>
