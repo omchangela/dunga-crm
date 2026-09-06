@@ -221,7 +221,7 @@ export default function ProjectDetailPage() {
   }
 
   async function handleEstimationPdf() {
-    if (!project || pdfBusy || !project.estimationPdfUrl) return;
+    if (!project || pdfBusy) return;
     setPdfBusy(true);
     try {
       const dl = await projectsApi.getPdf(project.id);
@@ -229,10 +229,10 @@ export default function ProjectDetailPage() {
       if (downloadUrl) {
         setViewer({ url: downloadUrl, title: `${project.projectName || "Project"} — Estimation PDF` });
       } else {
-        showToast("Estimation PDF not available.");
+        showToast("Estimation PDF not available. Please generate it from the Estimation page.");
       }
     } catch (err: any) {
-      if (err?.status === 404) showToast("Estimation PDF not available.");
+      if (err?.status === 404) showToast("Estimation PDF not available. Please generate it from the Estimation page.");
       else showToast(err?.message ?? "Failed to open PDF.");
     } finally {
       setPdfBusy(false);
@@ -326,17 +326,15 @@ export default function ProjectDetailPage() {
             </div>
 
             <div className="flex flex-wrap items-center gap-3">
-              {/* Estimate PDF button — opens the proposal/estimation PDF */}
-              {project.estimationPdfUrl && (
-                <button
-                  onClick={handleEstimationPdf}
-                  disabled={pdfBusy}
-                  className="inline-flex items-center gap-2 rounded-xl bg-white/10 px-4 py-2.5 text-xs font-bold text-white backdrop-blur-md border border-white/15 transition hover:bg-white/20 disabled:opacity-60"
-                >
-                  <Eye className="h-4 w-4" />
-                  Estimate PDF
-                </button>
-              )}
+              {/* Estimate PDF button — always visible, opens the proposal/estimation PDF */}
+              <button
+                onClick={handleEstimationPdf}
+                disabled={pdfBusy}
+                className="inline-flex items-center gap-2 rounded-xl bg-white/10 px-4 py-2.5 text-xs font-bold text-white backdrop-blur-md border border-white/15 transition hover:bg-white/20 disabled:opacity-60"
+              >
+                <Eye className="h-4 w-4" />
+                Estimate PDF
+              </button>
 
               {projectPdfJob && (projectPdfJob.state === "queued" || projectPdfJob.state === "waiting" || projectPdfJob.state === "active") ? (
                 <div className="flex min-w-[180px] flex-col gap-1 rounded-2xl bg-white/10 p-3 backdrop-blur-md">
