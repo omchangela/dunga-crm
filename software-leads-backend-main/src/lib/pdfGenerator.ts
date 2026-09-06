@@ -654,11 +654,11 @@ function renderAgreementPdf(
     const descText = String(project.description).trim();
     if (descText.length > 0) {
       const descH = doc.heightOfString(descText, { width: 445, lineGap: 1.5 });
-      ensureSpace(descH + 22);
+      ensureSpace(descH + 20);
       doc.fillColor(accentOrange).fontSize(8.5).font('Helvetica-Bold').text('Project Description:', 45, y, { lineBreak: false });
       y += 12;
       doc.fillColor(darkText).fontSize(8).font('Helvetica').text(descText, 45, y, { width: 445, lineGap: 1.5 });
-      y += descH + 8;
+      y += descH + 10;
     }
   }
 
@@ -668,23 +668,25 @@ function renderAgreementPdf(
   const adminList = project.adminOverview || project.overview?.admin || [];
 
   if (webList.length || appList.length || adminList.length || timelines.length) {
-    ensureSpace(25);
-    doc.fillColor(primaryTeal).fontSize(8.5).font('Helvetica-Bold').text('Scope of Work & Key Deliverables:', 45, y, { lineBreak: false });
-    y += 12;
+    ensureSpace(30);
+    doc.fillColor(primaryTeal).fontSize(9).font('Helvetica-Bold').text('Scope of Work & Key Deliverables:', 45, y, { lineBreak: false });
+    y += 13;
 
     const renderList = (catTitle: string, items: string[]) => {
       if (!items.length) return;
-      ensureSpace(24);
-      doc.fillColor(darkText).fontSize(8).font('Helvetica-Bold').text(catTitle, 45, y, { lineBreak: false });
-      y += 10;
+      const minBlockH = Math.min(items.length * 13 + 18, 48);
+      ensureSpace(minBlockH);
+      doc.fillColor(darkText).fontSize(8.5).font('Helvetica-Bold').text(catTitle, 53, y, { lineBreak: false });
+      y += 11;
+
       items.forEach((it: string) => {
-        const textStr = `•  ${it}`;
-        const lineH = doc.heightOfString(textStr, { width: 435, lineGap: 1.5 }) + 1.5;
-        ensureSpace(lineH + 1);
-        doc.fillColor(darkText).fontSize(8).font('Helvetica').text(textStr, 55, y, { width: 435, lineGap: 1.5 });
-        y += lineH;
+        const itemH = doc.heightOfString(it, { width: 420, lineGap: 1.5 });
+        ensureSpace(itemH + 3);
+        doc.fillColor(darkText).fontSize(8.5).font('Helvetica-Bold').text('•', 63, y, { lineBreak: false });
+        doc.fillColor(darkText).fontSize(8).font('Helvetica').text(it, 73, y, { width: 420, lineGap: 1.5 });
+        y += itemH + 2.5;
       });
-      y += 4;
+      y += 5;
     };
 
     renderList('Web Platform Features:', webList);
@@ -692,17 +694,20 @@ function renderAgreementPdf(
     renderList('Admin Dashboard & Backend:', adminList);
 
     if (timelines.length > 0) {
-      ensureSpace(24);
-      doc.fillColor(darkText).fontSize(8).font('Helvetica-Bold').text('Milestone Deliverables Schedule:', 45, y, { lineBreak: false });
-      y += 10;
+      const minTimelineH = Math.min(timelines.length * 13 + 18, 48);
+      ensureSpace(minTimelineH);
+      doc.fillColor(darkText).fontSize(8.5).font('Helvetica-Bold').text('Milestone Deliverables Schedule:', 53, y, { lineBreak: false });
+      y += 11;
+
       timelines.forEach((t: any) => {
-        const textStr = `•  ${t.description || 'Milestone Phase'} (${t.workingDays || 0} Working Days)`;
-        const lineH = doc.heightOfString(textStr, { width: 435, lineGap: 1.5 }) + 1.5;
-        ensureSpace(lineH + 1);
-        doc.fillColor(darkText).fontSize(8).font('Helvetica').text(textStr, 55, y, { width: 435, lineGap: 1.5 });
-        y += lineH;
+        const textStr = `${t.description || 'Milestone Phase'} (${t.workingDays || 0} Working Days)`;
+        const itemH = doc.heightOfString(textStr, { width: 420, lineGap: 1.5 });
+        ensureSpace(itemH + 3);
+        doc.fillColor(darkText).fontSize(8.5).font('Helvetica-Bold').text('•', 63, y, { lineBreak: false });
+        doc.fillColor(darkText).fontSize(8).font('Helvetica').text(textStr, 73, y, { width: 420, lineGap: 1.5 });
+        y += itemH + 2.5;
       });
-      y += 4;
+      y += 5;
     }
   }
 
