@@ -526,6 +526,9 @@ export const getPaymentReports = async (req: Request, res: Response) => {
     } else if (filter === 'month') {
         startDate = new Date(now.getFullYear(), now.getMonth(), 1)
         endDate   = new Date(today.getTime() + 86_400_000 - 1)
+    } else if (filter === 'total' || filter === 'all') {
+        startDate = undefined
+        endDate   = undefined
     } else if (from && to) {
         startDate = new Date(from)
         endDate   = new Date(new Date(to).getTime() + 86_400_000 - 1)

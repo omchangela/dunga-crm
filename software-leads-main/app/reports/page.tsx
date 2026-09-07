@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
@@ -13,6 +13,7 @@ import { PdfViewerModal } from "@/components/shared/pdf-viewer-modal";
 
 const FILTER_PRESETS = [
   { key: "today",     label: "Today" },
+  { key: "total",     label: "Total (All Time)" },
   { key: "yesterday", label: "Yesterday" },
   { key: "week",      label: "Last 7 Days" },
   { key: "month",     label: "This Month" },
@@ -94,6 +95,93 @@ export default function ReportsPage() {
     }
   }
 
+  // Helper to generate & download CSV file
+  function exportTransactionsToCsv(txns: any[], total: number, filterName: string) {
+    const headers = [
+      "Date",
+      "Customer / Project",
+      "Customer Name",
+      "Project Name",
+      "Payment Mode",
+      "Ref. / Note",
+      "Amount (INR)",
+    ];
+
+    const rows = txns.map((txn) => {
+      const dateStr = formatDate(txn.paymentDate);
+      const customerName = txn.project?.customer?.fullName || "—";
+      const projectName = txn.project?.projectName || "—";
+      const custProj = customerName !== "—" && projectName !== "—"
+        ? `${customerName} / ${projectName}`
+        : customerName !== "—" ? customerName : projectName;
+      const mode = txn.paymentMethod || "—";
+      const refNote = [txn.transactionId, txn.note].filter(Boolean).join(" · ") || "—";
+      const amount = Number(txn.amount || 0).toFixed(2);
+
+      return [dateStr, custProj, customerName, projectName, mode, refNote, amount];
+    });
+
+    // Append Total row
+    rows.push([
+      "TOTAL",
+      `${txns.length} records`,
+      "",
+      "",
+      "",
+      "",
+      Number(total || 0).toFixed(2),
+    ]);
+
+    const csvContent = [headers, ...rows]
+      .map((row) =>
+        row
+          .map((val) => {
+            const str = String(val ?? "").replace(/"/g, '""');
+            return `"${str}"`;
+          })
+          .join(",")
+      )
+      .join("\r\n");
+
+    const blob = new Blob(["\uFEFF" + csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    const sanitizedFilter = filterName.toLowerCase().replace(/[^a-z0-9]/g, "_");
+    const fileName = `payment_transactions_${sanitizedFilter}_${new Date().toISOString().slice(0, 10)}.csv`;
+    link.setAttribute("href", url);
+    link.setAttribute("download", fileName);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  }
+
+  function handleDownloadCsv() {
+    if (transactions.length === 0) {
+      showToast("No transactions to download in this period.");
+      return;
+    }
+    exportTransactionsToCsv(transactions, totalAmount, activeLabel);
+    showToast(`Downloaded CSV for ${activeLabel}.`);
+  }
+
+  async function handleDownloadDirectReport(type: "today" | "total") {
+    try {
+      showToast(`Preparing ${type === "today" ? "Today's" : "Total (All Time)"} CSV...`);
+      const res = await financeApi.reports({ filter: type });
+      const txns = res?.data?.transactions ?? [];
+      const amt = res?.data?.totalAmount ?? 0;
+      if (txns.length === 0) {
+        showToast(`No transactions found for ${type === "today" ? "Today" : "Total"}.`);
+        return;
+      }
+      exportTransactionsToCsv(txns, amt, type === "today" ? "Today" : "Total_All_Time");
+      showToast(`${type === "today" ? "Today's" : "Total (All Time)"} CSV downloaded successfully.`);
+    } catch (e: any) {
+      showToast("Failed to download CSV: " + (e?.message || "Unknown error"));
+    }
+  }
+
   // Breakdown by payment method
   const methodBreakdown = transactions.reduce((acc: Record<string, number>, txn) => {
     const m = txn.paymentMethod || "Other";
@@ -131,10 +219,19 @@ export default function ReportsPage() {
             <h1 className="text-2xl font-extrabold tracking-tight text-white md:text-3xl">Payment Reports</h1>
             <p className="mt-1 text-sm text-slate-300">Detailed payment history with date filtering and receipt generation.</p>
           </div>
-          <div className="flex items-center gap-3">
-            <div className="rounded-2xl border border-white/15 bg-white/10 backdrop-blur-md px-5 py-3 text-center">
-              <p className="text-xs font-semibold text-blue-200 uppercase tracking-wide">Period</p>
-              <p className="text-base font-bold text-white">{activeLabel}</p>
+          <div className="flex flex-wrap items-center gap-2.5">
+            <button
+              onClick={handleDownloadCsv}
+              disabled={transactions.length === 0}
+              className="inline-flex items-center gap-2 rounded-2xl bg-white/10 px-4 py-2.5 text-xs font-bold text-white backdrop-blur-md border border-white/15 transition hover:bg-white/20 disabled:opacity-50 shadow-sm"
+              title="Download CSV for current period"
+            >
+              <Download className="h-4 w-4" />
+              Download CSV
+            </button>
+            <div className="rounded-2xl border border-white/15 bg-white/10 backdrop-blur-md px-5 py-2.5 text-center">
+              <p className="text-[10px] font-semibold text-blue-200 uppercase tracking-wide">Period</p>
+              <p className="text-sm font-bold text-white">{activeLabel}</p>
             </div>
           </div>
         </div>
@@ -237,10 +334,39 @@ export default function ReportsPage() {
 
       {/* Transactions Table */}
       <section className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-sm">
-        <div className="flex items-center justify-between border-b border-slate-100 px-6 py-5">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 px-6 py-5">
           <div>
             <h2 className="text-base font-bold text-slate-900">Payment Transactions</h2>
             <p className="mt-0.5 text-xs text-slate-500">{count} records · {activeLabel}</p>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              onClick={handleDownloadCsv}
+              disabled={transactions.length === 0}
+              className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-600 px-3.5 py-2 text-xs font-bold text-white shadow-sm hover:bg-emerald-700 transition disabled:opacity-50"
+              title="Download CSV for current filtered table"
+            >
+              <FileDown className="h-4 w-4" />
+              Download CSV ({activeLabel})
+            </button>
+            <button
+              onClick={() => handleDownloadDirectReport("today")}
+              disabled={loading}
+              className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-bold text-slate-700 hover:bg-slate-100 dark:border-slate-800 dark:bg-slate-800 dark:text-slate-300 transition"
+              title="Quick download today's payments CSV"
+            >
+              <Download className="h-3.5 w-3.5 text-blue-600" />
+              Today CSV
+            </button>
+            <button
+              onClick={() => handleDownloadDirectReport("total")}
+              disabled={loading}
+              className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-bold text-slate-700 hover:bg-slate-100 dark:border-slate-800 dark:bg-slate-800 dark:text-slate-300 transition"
+              title="Quick download all-time total payments CSV"
+            >
+              <Download className="h-3.5 w-3.5 text-indigo-600" />
+              Total CSV
+            </button>
           </div>
         </div>
 
