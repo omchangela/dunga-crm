@@ -2,6 +2,7 @@ import { Request, Response } from 'express'
 import prisma from '../lib/prisma'
 import { z } from 'zod'
 import { generateReceiptPdf } from '../lib/generateReceiptPdf'
+import { sendPaymentReceiptAlert } from '../lib/whatsapp'
 
 // ─── HELPERS ──────────────────────────────────────
 
@@ -231,7 +232,13 @@ export const collectPayment = async (req: Request, res: Response) => {
     const data = parsed.data
 
     const project = await prisma.project.findUnique({
-        where: { id: data.projectId }
+        where: { id: data.projectId },
+        include: {
+            customer: true,
+            transactions: {
+                where: { source: 'PROJECT' }
+            }
+        }
     })
 
     if (!project) {
@@ -266,6 +273,28 @@ export const collectPayment = async (req: Request, res: Response) => {
             data:  { schedules: updatedSchedules as any }
         })
     ])
+
+    // Calculate updated remaining balance for WhatsApp notification
+    const totalBudget = getProjectTotal(project.budget, project.costHistory as any[])
+    const previousPaid = project.transactions.reduce((sum, t) => sum + t.amount, 0)
+    const newTotalPaid = previousPaid + data.amount
+    const remainingBalance = Math.max(0, totalBudget - newTotalPaid)
+
+    // Trigger WhatsApp notification asynchronously (safe non-blocking)
+    if (project.customer?.phone) {
+        sendPaymentReceiptAlert({
+            clientPhone: project.customer.phone,
+            clientName: project.customer.fullName,
+            projectName: project.projectName,
+            amount: data.amount,
+            paymentMethod: data.paymentMethod,
+            transactionId: data.transactionId || null,
+            remainingBalance,
+            projectId: project.id
+        }).catch(err => {
+            console.error('[WhatsApp Trigger Error]', err)
+        })
+    }
 
     res.status(201).json({
         transaction,

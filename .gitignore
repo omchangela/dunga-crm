@@ -33,3 +33,9 @@ yarn-error.log*
 .DS_Store
 *.pem
 *.tsbuildinfo
+*.zip
+test_output_pdfs/
+*/test_output_pdfs/
+dunga-technologies/
+dunga_website/
+

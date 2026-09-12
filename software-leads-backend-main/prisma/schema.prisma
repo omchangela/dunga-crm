@@ -149,6 +149,8 @@ model Project {
   projectPdfUrl    String?
   projectPdfAt     DateTime?
 
+  lastDeadlineReminderSentAt DateTime?
+
   subscriptions Subscription[]
 }
 
@@ -243,10 +245,12 @@ model Subscription {
   billingCycle String   @default("Monthly")
   renewalDate  DateTime
   status       String   @default("Active")
-  lastPaidAt   DateTime?
-  paidUntil    DateTime?
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  lastPaidAt            DateTime?
+  paidUntil             DateTime?
+  last15dReminderSentAt DateTime?
+  last7dReminderSentAt  DateTime?
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
 
   projectId    String?
   project      Project? @relation(fields: [projectId], references: [id], onDelete: SetNull)
@@ -359,4 +363,20 @@ model EmployeeRefreshToken {
   replacedBy String?
 
   @@index([employeeId])
+}
+
+model WhatsAppNotificationLog {
+  id             String   @id @default(uuid())
+  type           String   // QUOTATION, PAYMENT_RECEIPT, PROJECT_DEADLINE, SUBSCRIPTION_15D, SUBSCRIPTION_7D
+  recipientPhone String
+  recipientName  String?
+  message        String   @db.Text
+  referenceId    String?  // projectId, subscriptionId, transactionId
+  status         String   @default("SENT") // SENT, FAILED, DRY_RUN
+  error          String?
+  sentAt         DateTime @default(now())
+  createdAt      DateTime @default(now())
+
+  @@index([referenceId, type])
+  @@index([type, sentAt])
 }

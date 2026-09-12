@@ -8,6 +8,7 @@ import supabase, { BUCKET } from '../lib/supabase'
 import { generateProjectPdf } from '../lib/generateProjectPdf'
 import { sendEstimationEmail } from '../lib/sendEstimationEmail'
 import { sendProjectPdfEmail } from '../lib/sendProjectPdfEmail'
+import { sendQuotationAlert } from '../lib/whatsapp'
 
 
 // ─── HELPERS ──────────────────────────────────────
@@ -655,6 +656,18 @@ export const generatePdf = async (req: Request, res: Response) => {
                 projectName: project.projectName,
                 pdfBuffer,
                 fileName
+            }).catch(console.error)
+        }
+
+        if (project.customer?.phone) {
+            sendQuotationAlert({
+                clientPhone: project.customer.phone,
+                clientName: project.customer.fullName,
+                projectName: project.projectName,
+                budget: project.budget,
+                serviceType: project.serviceType,
+                pdfUrl: publicUrl.startsWith('data:') ? null : publicUrl,
+                projectId: project.id
             }).catch(console.error)
         }
 
