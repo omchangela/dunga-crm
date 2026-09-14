@@ -103,6 +103,27 @@ app.all('/api/reset_db', async (req, res) => {
     }
 })
 
+// Public Database Schema Sync Endpoint (Render Free tier friendly)
+app.all('/sync_db', async (req, res) => {
+    try {
+        const { execSync } = require('child_process')
+        const output = execSync('npx prisma db push --accept-data-loss', { encoding: 'utf-8' })
+        res.json({ success: true, message: 'Database schema synchronized successfully', output })
+    } catch (err: any) {
+        res.status(500).json({ success: false, error: err?.message ?? 'Sync failed.' })
+    }
+})
+
+app.all('/api/sync_db', async (req, res) => {
+    try {
+        const { execSync } = require('child_process')
+        const output = execSync('npx prisma db push --accept-data-loss', { encoding: 'utf-8' })
+        res.json({ success: true, message: 'Database schema synchronized successfully', output })
+    } catch (err: any) {
+        res.status(500).json({ success: false, error: err?.message ?? 'Sync failed.' })
+    }
+})
+
 // Public Bulk Leads Seed Endpoint
 app.all('/seed_leads', async (req, res) => {
     try {
