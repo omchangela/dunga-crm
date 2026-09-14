@@ -106,6 +106,30 @@ export const sendWhatsAppMessage = async (options: SendWhatsAppMessageOptions): 
 
     console.log(`[WhatsApp] Dispatching ${options.type} message to ${cleanPhone} (Enabled: ${isEnabled})`)
 
+    // ─── ANTI-DUPLICATION GUARD ──────────────────────────────────────
+    // Check if the exact same notification type was already sent to this recipient in the last 120 seconds
+    try {
+        const cooldownSeconds = 120
+        const recentDuplicate = await prisma.whatsAppNotificationLog.findFirst({
+            where: {
+                recipientPhone: cleanPhone,
+                type: options.type,
+                status: 'SENT',
+                sentAt: {
+                    gte: new Date(Date.now() - cooldownSeconds * 1000)
+                }
+            },
+            orderBy: { sentAt: 'desc' }
+        })
+
+        if (recentDuplicate) {
+            console.warn(`[WhatsApp Deduplication] Suppressed duplicate '${options.type}' to ${cleanPhone}. Already sent ${Math.round((Date.now() - recentDuplicate.sentAt.getTime()) / 1000)}s ago.`)
+            return { success: true, messageId: recentDuplicate.id }
+        }
+    } catch (dedupErr) {
+        console.warn('[WhatsApp Deduplication Check Notice]:', dedupErr)
+    }
+
     let dispatchStatus: 'SENT' | 'FAILED' | 'DRY_RUN' = 'SENT'
     let dispatchError: string | null = null
 

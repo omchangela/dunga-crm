@@ -191,20 +191,6 @@ export const updateLead = async (req: Request, res: Response) => {
         data:  { ...data, email: data.email || null }
     })
 
-    if (data.status === 'DISCUSSION_COMPLETED') {
-        try {
-            const serviceName = updated.serviceType ? updated.serviceType.replace(/_/g, ' ') : 'Software Solution'
-            await sendProjectDiscussionSummary({
-                clientPhone:    updated.phone,
-                clientName:     updated.fullName,
-                projectSummary: `Discussion completed for ${serviceName} requirements.`,
-                projectId:      updated.id
-            })
-        } catch (waErr) {
-            console.error('[WhatsApp] Failed to send lead discussion summary:', waErr)
-        }
-    }
-
     res.status(200).json({
         success: true,
         message: 'Lead updated successfully',
@@ -253,17 +239,22 @@ export const updateStatus = async (req: Request, res: Response) => {
     })
 
     if (parsed.data.status === 'DISCUSSION_COMPLETED') {
-        try {
-            const serviceName = updated.serviceType ? updated.serviceType.replace(/_/g, ' ') : 'Software Solution'
-            const summary = parsed.data.note?.trim() || `Discussion completed for ${serviceName} requirements.`
-            await sendProjectDiscussionSummary({
-                clientPhone:    updated.phone,
-                clientName:     updated.fullName,
-                projectSummary: summary,
-                projectId:      updated.id
-            })
-        } catch (waErr) {
-            console.error('[WhatsApp] Failed to send lead discussion summary:', waErr)
+        const isStatusChange = existing.status !== 'DISCUSSION_COMPLETED'
+        const hasCustomNote  = Boolean(parsed.data.note && parsed.data.note.trim())
+
+        if (isStatusChange || hasCustomNote) {
+            try {
+                const serviceName = updated.serviceType ? updated.serviceType.replace(/_/g, ' ') : 'Software Solution'
+                const summary = parsed.data.note?.trim() || `Discussion completed for ${serviceName} requirements.`
+                await sendProjectDiscussionSummary({
+                    clientPhone:    updated.phone,
+                    clientName:     updated.fullName,
+                    projectSummary: summary,
+                    projectId:      updated.id
+                })
+            } catch (waErr) {
+                console.error('[WhatsApp] Failed to send lead discussion summary:', waErr)
+            }
         }
     }
 
