@@ -23,6 +23,7 @@ import {
     leadEmployeeRouter
 } from './routes/employees'
 import developerPortalRouter from './routes/developerPortal'
+import prisma from './lib/prisma'
 
 // middleware
 import { errorHandler } from './middleware/errorHandler'
@@ -35,6 +36,38 @@ import { startWorkers } from './startWorkers'
 if (!cluster.isWorker || cluster.worker?.id === 1) {
     startWorkers()
 }
+
+// Auto-ensure production database has required enum values & tables
+async function ensureProductionSchema() {
+    try {
+        await prisma.$executeRawUnsafe(`ALTER TYPE "LeadStatus" ADD VALUE IF NOT EXISTS 'DISCUSSION_COMPLETED';`)
+        await prisma.$executeRawUnsafe(`ALTER TYPE "ProjectStatus" ADD VALUE IF NOT EXISTS 'DISCUSSION_COMPLETED';`)
+        await prisma.$executeRawUnsafe(`ALTER TABLE "Project" ADD COLUMN IF NOT EXISTS "lastDeadlineReminderSentAt" TIMESTAMP(3);`)
+        await prisma.$executeRawUnsafe(`ALTER TABLE "Subscription" ADD COLUMN IF NOT EXISTS "last15dReminderSentAt" TIMESTAMP(3);`)
+        await prisma.$executeRawUnsafe(`ALTER TABLE "Subscription" ADD COLUMN IF NOT EXISTS "last7dReminderSentAt" TIMESTAMP(3);`)
+        await prisma.$executeRawUnsafe(`
+            CREATE TABLE IF NOT EXISTS "WhatsAppNotificationLog" (
+                "id" TEXT NOT NULL,
+                "type" TEXT NOT NULL,
+                "recipientPhone" TEXT NOT NULL,
+                "recipientName" TEXT,
+                "message" TEXT NOT NULL,
+                "referenceId" TEXT,
+                "status" TEXT NOT NULL DEFAULT 'SENT',
+                "error" TEXT,
+                "sentAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                CONSTRAINT "WhatsAppNotificationLog_pkey" PRIMARY KEY ("id")
+            );
+        `)
+        await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "WhatsAppNotificationLog_referenceId_type_idx" ON "WhatsAppNotificationLog"("referenceId", "type");`)
+        await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "WhatsAppNotificationLog_type_sentAt_idx" ON "WhatsAppNotificationLog"("type", "sentAt");`)
+        console.log('✓ Production database schema verified and up-to-date')
+    } catch (e: any) {
+        console.warn('[Schema Sync] Notice:', e?.message || e)
+    }
+}
+ensureProductionSchema()
 
 const app = express()
 
