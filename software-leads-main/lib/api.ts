@@ -176,10 +176,10 @@ export const leadsApi = {
   }>) =>
     request(`/api/leads/${id}`, { method: "PUT", body: JSON.stringify(data) }),
 
-  updateStatus: (id: string, status: string) =>
+  updateStatus: (id: string, status: string, note?: string) =>
     request(`/api/leads/${id}/status`, {
       method: "PATCH",
-      body: JSON.stringify({ status }),
+      body: JSON.stringify({ status, note }),
     }),
 
   toggleFollowUp: (id: string) =>

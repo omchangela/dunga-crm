@@ -5,7 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import {
   ArrowLeft, Mail, Phone, CalendarDays,
-  User, CheckCircle2, Circle, Pencil, Clock, Tag, Trash2, X, UserPlus, MapPin, Layers, AlertTriangle, ArrowRight,
+  User, CheckCircle2, Circle, Pencil, Clock, Tag, Trash2, X, UserPlus, MapPin, Layers, AlertTriangle, ArrowRight, MessageSquare,
 } from "lucide-react";
 import { Button }          from "@/components/ui/button";
 import { LeadStatusBadge } from "@/components/leads/lead-status-badge";
@@ -129,7 +129,11 @@ export default function LeadDetailPage() {
   const [isSavingReReminder, setIsSavingReReminder] = useState(false);
   const [toast, setToast] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
-  const isAnyActionPending = converting || isToggling || isDeleting || isSavingReminder || isSavingReReminder;
+  const [showDiscussionModal, setShowDiscussionModal] = useState(false);
+  const [discussionNote, setDiscussionNote]           = useState("");
+  const [isSavingDiscussion, setIsSavingDiscussion]   = useState(false);
+
+  const isAnyActionPending = converting || isToggling || isDeleting || isSavingReminder || isSavingReReminder || isSavingDiscussion;
 
   async function load() {
     try {
@@ -226,6 +230,24 @@ export default function LeadDetailPage() {
     }
   }
 
+  async function handleSaveDiscussion() {
+    if (!discussionNote.trim()) {
+      flash("error", "Please enter a discussion note / summary.");
+      return;
+    }
+    setIsSavingDiscussion(true);
+    try {
+      await leadsApi.updateStatus(id, "DISCUSSION_COMPLETED", discussionNote.trim());
+      setShowDiscussionModal(false);
+      flash("success", "Discussion note saved and WhatsApp summary sent!");
+      await load();
+    } catch (err: any) {
+      flash("error", err?.message ?? "Failed to save discussion note.");
+    } finally {
+      setIsSavingDiscussion(false);
+    }
+  }
+
   if (!lead) return <div className="flex items-center justify-center py-20 text-xs font-bold text-slate-400">Lead record not found.</div>;
 
   return (
@@ -249,6 +271,61 @@ export default function LeadDetailPage() {
               </button>
               <button onClick={() => setShowConvert(false)} disabled={converting}
                 className="rounded-xl border border-slate-200 dark:border-slate-800 px-4 py-2.5 text-xs font-bold text-slate-600 dark:text-slate-400 hover:bg-slate-50 disabled:opacity-40">
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    )}
+
+    {showDiscussionModal && (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 backdrop-blur-sm p-4">
+        <div className="w-full max-w-md overflow-hidden rounded-3xl bg-white shadow-2xl dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
+          <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 px-6 py-4">
+            <div className="flex items-center gap-2.5">
+              <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-violet-50 dark:bg-violet-950/50 text-violet-600 dark:text-violet-400">
+                <MessageSquare className="h-4 w-4" />
+              </div>
+              <div>
+                <p className="font-bold text-slate-900 dark:text-white text-sm">Project Discussion</p>
+                <p className="text-[11px] text-slate-500 dark:text-slate-400">Add discussion note & update pipeline</p>
+              </div>
+            </div>
+            <button onClick={() => setShowDiscussionModal(false)} disabled={isSavingDiscussion}
+              className="rounded-xl p-1.5 text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-40">
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+          <div className="p-6 space-y-4">
+            <div>
+              <label className="mb-1.5 block text-xs font-bold text-slate-700 dark:text-slate-300">
+                Discussion Note / Requirements Summary <span className="text-rose-500">*</span>
+              </label>
+              <textarea
+                rows={4}
+                value={discussionNote}
+                onChange={(e) => setDiscussionNote(e.target.value)}
+                placeholder="Enter requirements discussed with client..."
+                className="w-full rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 p-3.5 text-xs text-slate-900 dark:text-white placeholder:text-slate-400 focus:border-violet-600 focus:bg-white dark:focus:bg-slate-900 focus:outline-none transition resize-none leading-relaxed"
+              />
+              <p className="mt-1.5 text-[11px] text-slate-500 dark:text-slate-400">
+                📱 This summary will automatically be dispatched to <strong>{lead.phone}</strong> via WhatsApp.
+              </p>
+            </div>
+            <div className="flex gap-2 pt-2">
+              <button
+                onClick={handleSaveDiscussion}
+                disabled={isSavingDiscussion || !discussionNote.trim()}
+                className="flex-1 rounded-xl bg-gradient-to-r from-violet-600 to-indigo-600 py-2.5 text-xs font-bold text-white hover:brightness-110 disabled:opacity-50 shadow-md shadow-violet-600/25 transition"
+              >
+                {isSavingDiscussion ? "Saving & Sending..." : "Save Note"}
+              </button>
+              <button
+                onClick={() => setShowDiscussionModal(false)}
+                disabled={isSavingDiscussion}
+                className="rounded-xl border border-slate-200 dark:border-slate-800 px-4 py-2.5 text-xs font-bold text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 disabled:opacity-40"
+              >
                 Cancel
               </button>
             </div>
@@ -308,6 +385,18 @@ export default function LeadDetailPage() {
             </div>
 
             <div className="flex flex-wrap items-center gap-2">
+              <button
+                onClick={() => {
+                  setDiscussionNote(`Discussed requirements for ${lead.serviceType?.replace(/_/g, ' ') || lead.projectType || 'Software Project'}. Requirements noted.`);
+                  setShowDiscussionModal(true);
+                }}
+                disabled={isAnyActionPending}
+                className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-violet-600 to-indigo-600 px-4 py-2.5 text-xs font-bold text-white shadow-lg shadow-violet-600/30 transition hover:brightness-110 active:scale-95 disabled:opacity-50"
+              >
+                <MessageSquare className="h-4 w-4" />
+                Discussion
+              </button>
+
               {lead.status !== "CONVERTED" ? (
                 <button onClick={() => setShowConvert(true)} disabled={isAnyActionPending}
                   className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 px-5 py-2.5 text-xs font-bold text-white shadow-lg shadow-blue-600/30 transition hover:brightness-110 active:scale-95 disabled:opacity-50">

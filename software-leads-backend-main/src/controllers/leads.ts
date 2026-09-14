@@ -32,7 +32,8 @@ const updateLeadSchema = z.object({
 })
 
 const updateStatusSchema = z.object({
-    status: z.enum(LEAD_STATUSES)
+    status: z.enum(LEAD_STATUSES),
+    note:   z.string().optional()
 })
 
 const bulkFollowUpSchema = z.object({
@@ -254,10 +255,11 @@ export const updateStatus = async (req: Request, res: Response) => {
     if (parsed.data.status === 'DISCUSSION_COMPLETED') {
         try {
             const serviceName = updated.serviceType ? updated.serviceType.replace(/_/g, ' ') : 'Software Solution'
+            const summary = parsed.data.note?.trim() || `Discussion completed for ${serviceName} requirements.`
             await sendProjectDiscussionSummary({
                 clientPhone:    updated.phone,
                 clientName:     updated.fullName,
-                projectSummary: `Discussion completed for ${serviceName} requirements.`,
+                projectSummary: summary,
                 projectId:      updated.id
             })
         } catch (waErr) {
