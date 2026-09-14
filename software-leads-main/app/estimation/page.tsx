@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import {
   Search, SlidersHorizontal, ChevronLeft, ChevronRight,
   Calculator, X, ChevronDown, FileSpreadsheet, Download, Plus,
-  FileDown, Eye, Loader2, FileText, CheckCircle2, AlertTriangle, ArrowRight,
+  FileDown, Eye, Loader2, FileText, CheckCircle2, AlertTriangle, ArrowRight, MessageCircle,
 } from "lucide-react";
 import { fetchAllProjects, projectsApi } from "@/lib/api";
 import { e as toEnum } from "@/lib/enum-maps";
@@ -84,6 +84,7 @@ export default function EstimationPage() {
   const [pdfJobs, setPdfJobs]   = useState<Record<string, PdfJobState | null>>({});
   const pdfIntervalsRef         = useRef<Record<string, ReturnType<typeof setInterval>>>({});
   const [viewer, setViewer]     = useState<{ url: string; title: string } | null>(null);
+  const [waJobs, setWaJobs]     = useState<Record<string, 'sending' | 'done' | 'error'>>({});
 
   useEffect(() => () => {
     Object.values(pdfIntervalsRef.current).forEach(clearInterval);
@@ -155,6 +156,22 @@ export default function EstimationPage() {
     } catch (err: any) {
       if (err?.status === 404) showToast("Generate PDF first");
       else showToast(err?.message ?? "Failed to open PDF.");
+    }
+  }
+
+  async function handleSendWhatsApp(proj: any, e: React.MouseEvent) {
+    e.stopPropagation();
+    if (waJobs[proj.id] === 'sending') return;
+    setWaJobs((w) => ({ ...w, [proj.id]: 'sending' }));
+    try {
+      await projectsApi.sendEstimationWhatsApp(proj.id);
+      setWaJobs((w) => ({ ...w, [proj.id]: 'done' }));
+      showToast('WhatsApp estimation message sent!');
+      setTimeout(() => setWaJobs((w) => { const n = { ...w }; delete n[proj.id]; return n; }), 4000);
+    } catch (err: any) {
+      setWaJobs((w) => ({ ...w, [proj.id]: 'error' }));
+      showToast(err?.message ?? 'Failed to send WhatsApp.');
+      setTimeout(() => setWaJobs((w) => { const n = { ...w }; delete n[proj.id]; return n; }), 3000);
     }
   }
 
@@ -583,7 +600,7 @@ export default function EstimationPage() {
                     <th className="py-3.5 px-4">Project Headline</th>
                     <th className="py-3.5 px-4">Client Contact</th>
                     <th className="py-3.5 px-4">Status</th>
-                    <th className="py-3.5 px-4 text-right">Proposal PDF</th>
+                    <th className="py-3.5 px-4 text-right">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
@@ -647,11 +664,24 @@ export default function EstimationPage() {
                                 </button>
                               );
                               if (p.estimationPdfUrl) return (
-                                <button onClick={(e) => handleViewRowPdf(p, e)}
-                                  title="View estimation PDF"
-                                  className="inline-flex items-center gap-1.5 rounded-xl border border-blue-200 bg-blue-50 px-3 py-1.5 text-xs font-bold text-blue-600 hover:bg-blue-100 dark:bg-blue-950/40 dark:border-blue-800 dark:text-blue-300">
-                                  <Eye className="h-3.5 w-3.5" />View PDF
-                                </button>
+                                <div className="flex items-center justify-end gap-2">
+                                  <button onClick={(e) => handleViewRowPdf(p, e)}
+                                    title="View estimation PDF"
+                                    className="inline-flex items-center gap-1.5 rounded-xl border border-blue-200 bg-blue-50 px-3 py-1.5 text-xs font-bold text-blue-600 hover:bg-blue-100 dark:bg-blue-950/40 dark:border-blue-800 dark:text-blue-300">
+                                    <Eye className="h-3.5 w-3.5" />View PDF
+                                  </button>
+                                  <button onClick={(e) => handleSendWhatsApp(p, e)}
+                                    title="Send WhatsApp estimation message"
+                                    disabled={waJobs[p.id] === 'sending'}
+                                    className={`inline-flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-xs font-bold transition disabled:opacity-60 ${
+                                      waJobs[p.id] === 'done'  ? 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:border-emerald-800 dark:text-emerald-300' :
+                                      waJobs[p.id] === 'error' ? 'border-rose-200 bg-rose-50 text-rose-600' :
+                                      'border-green-200 bg-green-50 text-green-700 hover:bg-green-100 dark:bg-green-950/40 dark:border-green-800 dark:text-green-300'
+                                    }`}>
+                                    {waJobs[p.id] === 'sending' ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <MessageCircle className="h-3.5 w-3.5" />}
+                                    {waJobs[p.id] === 'sending' ? 'Sending...' : waJobs[p.id] === 'done' ? 'Sent ✓' : 'WhatsApp'}
+                                  </button>
+                                </div>
                               );
                               return (
                                 <button onClick={(e) => handleGenerateRowPdf(p, e)}

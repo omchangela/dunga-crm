@@ -1004,6 +1004,85 @@ export const downloadPdf = async (req: Request, res: Response) => {
     }
 }
 
+// SEND ESTIMATION WHATSAPP (Template: estimation, ID: 969016959557925)
+export const sendEstimationWhatsApp = async (req: Request, res: Response) => {
+    const id = req.params.id as string
+
+    const project = await prisma.project.findUnique({
+        where: { id },
+        include: {
+            customer: {
+                select: {
+                    id: true, fullName: true, phone: true, email: true, applicationNumber: true
+                }
+            }
+        }
+    })
+
+    if (!project) {
+        res.status(404).json({ success: false, message: 'Project not found' })
+        return
+    }
+
+    if (!project.customer?.phone) {
+        res.status(400).json({ success: false, message: 'Customer phone number is not available' })
+        return
+    }
+
+    try {
+        // Use existing PDF URL if available, otherwise generate a fresh one
+        let pdfUrl = project.estimationPdfUrl && !project.estimationPdfUrl.startsWith('data:')
+            ? project.estimationPdfUrl
+            : null
+
+        if (!pdfUrl) {
+            // Generate a fresh PDF and upload to Supabase
+            const pdfBuffer = await buildEstimationPdfBuffer(project)
+            const sanitizedName = (project.projectName || 'project').replace(/[^a-zA-Z0-9]/g, '_').substring(0, 40)
+            const fileName = `${sanitizedName}_estimation_${Date.now()}.pdf`
+            const filePath = `estimation/${project.id}/${fileName}`
+
+            try {
+                const { error: uploadError } = await supabase.storage
+                    .from(BUCKET)
+                    .upload(filePath, pdfBuffer, { contentType: 'application/pdf', upsert: true })
+
+                if (!uploadError) {
+                    const { data: urlData } = supabase.storage.from(BUCKET).getPublicUrl(filePath)
+                    if (urlData?.publicUrl) {
+                        pdfUrl = urlData.publicUrl
+                        await prisma.project.update({
+                            where: { id },
+                            data: { estimationPdfUrl: pdfUrl, estimationPdfAt: new Date() }
+                        })
+                    }
+                }
+            } catch (uploadErr) {
+                console.warn('[EstimationWA] Could not upload PDF to Supabase, sending without attachment')
+            }
+        }
+
+        await sendQuotationAlert({
+            clientPhone: project.customer.phone,
+            clientName:  project.customer.fullName,
+            projectName: project.projectName,
+            budget:      project.budget,
+            serviceType: project.serviceType,
+            pdfUrl:      pdfUrl,
+            projectId:   project.id
+        })
+
+        res.status(200).json({
+            success: true,
+            message: 'Estimation WhatsApp sent successfully',
+            data: { phone: project.customer.phone, pdfUrl }
+        })
+    } catch (err: any) {
+        console.error('[EstimationWA] Error:', err)
+        res.status(500).json({ success: false, message: 'Failed to send WhatsApp', error: err?.message })
+    }
+}
+
 // DOWNLOAD Project PDF
 export const downloadProjectPdf = async (req: Request, res: Response) => {
     const id = req.params.id as string

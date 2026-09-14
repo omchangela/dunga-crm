@@ -736,6 +736,10 @@ export const projectsApi = {
   generatePdf: (id: string) =>
     request<any>(`/api/projects/${id}/pdf`, { method: "POST" }),
 
+  // Send the estimation WhatsApp message (template: estimation) for a project.
+  sendEstimationWhatsApp: (id: string) =>
+    request<any>(`/api/projects/${id}/pdf/whatsapp`, { method: "POST" }),
+
   // Get a signed download URL for an already-generated estimation PDF.
   getPdf: (id: string) =>
     request<any>(`/api/projects/${id}/pdf`),

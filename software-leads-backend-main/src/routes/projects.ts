@@ -12,6 +12,7 @@ import {
     removeFeature,
     generatePdf,
     downloadPdf,
+    sendEstimationWhatsApp,
     generateProjectPdfController,
     downloadProjectPdf,
     getPdfJobStatus,
@@ -33,8 +34,9 @@ router.patch('/:id/deadline',       setDeadline)
 router.patch('/:id/developers',     assignDevelopers)
 router.post('/:id/features',        addFeature)
 router.delete('/:id/features/:featureId', removeFeature)
-router.post('/:id/pdf',       generatePdf)
-router.get('/:id/pdf',        downloadPdf)
+router.post('/:id/pdf',               generatePdf)
+router.post('/:id/pdf/whatsapp',      sendEstimationWhatsApp)
+router.get('/:id/pdf',                downloadPdf)
 router.post('/:id/project-pdf',  generateProjectPdfController)
 router.get('/:id/project-pdf',   downloadProjectPdf)
 router.get('/:id/receipt-pdf',   getPaymentReceiptPdf)
