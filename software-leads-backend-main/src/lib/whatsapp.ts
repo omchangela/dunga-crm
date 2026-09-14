@@ -100,9 +100,9 @@ export const sendWhatsAppMessage = async (options: SendWhatsAppMessageOptions): 
     }
 
     const apiUrl = process.env.WHATSAPP_API_URL || 'https://crm.woxapi.in/api/v2/whatsapp-business/messages'
-    const apiKey = process.env.WHATSAPP_API_KEY || process.env.WHATSAPP_TOKEN || ''
+    const apiKey = process.env.WHATSAPP_API_KEY || process.env.WHATSAPP_TOKEN || 'fb291bf29374e66ed0237db0d57fc1658e7a2cd2201ef6068f9d0f7e24ba9bca'
     const phoneNoId = process.env.WHATSAPP_PHONE_NO_ID || '1345340821990898'
-    const isEnabled = process.env.WHATSAPP_ENABLED === 'true' || (Boolean(apiKey) && process.env.WHATSAPP_ENABLED !== 'false')
+    const isEnabled = process.env.WHATSAPP_ENABLED === 'true' || Boolean(apiKey)
 
     console.log(`[WhatsApp] Dispatching ${options.type} message to ${cleanPhone} (Enabled: ${isEnabled})`)
 
@@ -148,6 +148,8 @@ export const sendWhatsAppMessage = async (options: SendWhatsAppMessageOptions): 
                 }
             }
 
+            console.log(`[WhatsApp Payload] Sending to WoxAPI:`, JSON.stringify(payload))
+
             const response = await fetch(apiUrl, {
                 method: 'POST',
                 headers: {
@@ -157,9 +159,11 @@ export const sendWhatsAppMessage = async (options: SendWhatsAppMessageOptions): 
                 body: JSON.stringify(payload)
             })
 
+            const responseText = await response.text()
             if (!response.ok) {
-                const errText = await response.text().catch(() => response.statusText)
-                throw new Error(`WoxAPI returned HTTP ${response.status}: ${errText}`)
+                throw new Error(`WoxAPI returned HTTP ${response.status}: ${responseText}`)
+            } else {
+                console.log(`[WhatsApp Response] Success:`, responseText)
             }
         }
     } catch (err: any) {
