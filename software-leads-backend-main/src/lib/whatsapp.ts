@@ -7,7 +7,7 @@ export interface SendWhatsAppMessageOptions {
     recipientName?: string
     message: string
     mediaUrl?: string
-    type: 'QUOTATION' | 'PAYMENT_RECEIPT' | 'PROJECT_DEADLINE' | 'SUBSCRIPTION_15D' | 'SUBSCRIPTION_7D' | 'CUSTOM'
+    type: 'QUOTATION' | 'PAYMENT_RECEIPT' | 'PROJECT_DEADLINE' | 'SUBSCRIPTION_15D' | 'SUBSCRIPTION_7D' | 'DISCUSSION_COMPLETED' | 'CUSTOM'
     referenceId?: string
     template?: {
         name: string
@@ -353,5 +353,53 @@ Sincerely,
         message,
         type: notifType,
         referenceId: data.subscriptionId
+    })
+}
+
+// ─── INTERFACE ────────────────────────────────────────────────────
+
+export interface ProjectDiscussionSummaryPayload {
+    clientPhone: string
+    clientName: string
+    projectSummary: string
+    projectId?: string
+}
+
+/**
+ * 5. PROJECT DISCUSSION SUMMARY
+ *    WhatsApp template: project_discussion_summary (ID: 1634097878331749)
+ *    Body: Hello {{1}}, Thank you for discussing your project...
+ *          Project Summary: {{2}}
+ */
+export const sendProjectDiscussionSummary = async (data: ProjectDiscussionSummaryPayload) => {
+    const message =
+`📋 *PROJECT DISCUSSION SUMMARY — Dunga Technologies*
+
+Hello *${data.clientName}*,
+
+Thank you for discussing your project with Dunga Technologies.
+
+Project Summary:
+${data.projectSummary}
+
+We have noted the discussed requirements and will proceed with the next step accordingly.
+
+Thank you,
+*Dunga Technologies*`
+
+    return sendWhatsAppMessage({
+        recipientPhone: data.clientPhone,
+        recipientName: data.clientName,
+        message,
+        type: 'DISCUSSION_COMPLETED',
+        referenceId: data.projectId,
+        template: {
+            name: 'project_discussion_summary',
+            language: 'en',
+            bodyParams: [
+                data.clientName,
+                data.projectSummary
+            ]
+        }
     })
 }

@@ -8,7 +8,7 @@ import supabase, { BUCKET } from '../lib/supabase'
 import { generateProjectPdf } from '../lib/generateProjectPdf'
 import { sendEstimationEmail } from '../lib/sendEstimationEmail'
 import { sendProjectPdfEmail } from '../lib/sendProjectPdfEmail'
-import { sendQuotationAlert } from '../lib/whatsapp'
+import { sendQuotationAlert, sendProjectDiscussionSummary } from '../lib/whatsapp'
 
 
 // ─── HELPERS ──────────────────────────────────────
@@ -106,7 +106,8 @@ const updateProjectSchema = z.object({
     serviceType:   z.enum(SERVICE_TYPES).optional(),
     status:        z.enum([
         'PENDING', 'CONVERTED', 'REJECTED',
-        'ACTIVE',  'COMPLETED', 'ON_HOLD', 'CANCELLED'
+        'ACTIVE',  'COMPLETED', 'ON_HOLD', 'CANCELLED',
+        'DISCUSSION_COMPLETED'
     ]).optional(),
     webOverview:   z.array(z.string()).optional(),
     appOverview:   z.array(z.string()).optional(),
@@ -374,6 +375,28 @@ export const updateProject = async (req: Request, res: Response) => {
         where: { id },
         data
     })
+
+    // ─── WhatsApp: Discussion Completed notification ───────────────────────
+    if (data.status === 'DISCUSSION_COMPLETED') {
+        try {
+            const project = await prisma.project.findUnique({
+                where: { id },
+                include: { customer: { select: { fullName: true, phone: true } } }
+            })
+
+            if (project?.customer?.phone) {
+                const summary = data.description || project.description || 'Project requirements discussed with client.'
+                await sendProjectDiscussionSummary({
+                    clientPhone:    project.customer.phone,
+                    clientName:     project.customer.fullName,
+                    projectSummary: summary,
+                    projectId:      id
+                })
+            }
+        } catch (waErr) {
+            console.error('[WhatsApp] Failed to send project_discussion_summary:', waErr)
+        }
+    }
 
     res.status(200).json({
         success: true,

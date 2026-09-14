@@ -48,6 +48,7 @@ enum ProjectStatus {
   COMPLETED
   ON_HOLD
   CANCELLED
+  DISCUSSION_COMPLETED
 }
 
 model Lead {

@@ -52,6 +52,7 @@ export const PROJECT_STATUS_DISPLAY: Record<string, string> = {
   CONVERTED: "Converted",
   REJECTED:  "Rejected",
   COMPLETED: "Completed",
+  DISCUSSION_COMPLETED: "Discussion Completed",
   ON_HOLD:   "On Hold",
   CANCELLED: "Cancelled",
 };
