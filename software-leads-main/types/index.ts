@@ -8,7 +8,7 @@ export type LoanType =
   | "Car Loan"
   | "Commercial Loan";
 
-export type LeadStatus = "Pending" | "Under Review" | "Rejected" | "Converted";
+export type LeadStatus = "Pending" | "Discussion Completed" | "Under Review" | "Rejected" | "Converted";
 
 export type CustomerStatus = "Active" | "Closed" | "Defaulted";
 

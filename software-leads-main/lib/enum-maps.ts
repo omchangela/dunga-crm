@@ -17,9 +17,10 @@ export const SOURCE_DISPLAY: Record<string, string> = {
 };
 
 export const STATUS_DISPLAY: Record<string, string> = {
-  PENDING:   "Pending",
-  CONVERTED: "Converted",
-  REJECTED:  "Rejected",
+  PENDING:              "Pending",
+  DISCUSSION_COMPLETED: "Discussion Completed",
+  CONVERTED:            "Converted",
+  REJECTED:             "Rejected",
 };
 
 export const EMPLOYMENT_DISPLAY: Record<string, string> = {

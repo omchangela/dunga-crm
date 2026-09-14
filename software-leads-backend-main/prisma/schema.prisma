@@ -12,6 +12,7 @@ enum LeadStatus {
   PENDING
   CONVERTED
   REJECTED
+  DISCUSSION_COMPLETED
 }
 
 enum ServiceType {

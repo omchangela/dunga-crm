@@ -30,13 +30,14 @@ function initials(name: string) {
 
 // ── Status config ──────────────────────────────────────────────────────────────
 const STATUS_CFG: Record<string, { dot: string; text: string }> = {
-  PENDING:   { dot: "bg-yellow-400", text: "text-yellow-600" },
-  REJECTED:  { dot: "bg-red-400",    text: "text-red-500"    },
-  CONVERTED: { dot: "bg-purple-400", text: "text-purple-600" },
+  PENDING:              { dot: "bg-yellow-400", text: "text-yellow-600" },
+  DISCUSSION_COMPLETED: { dot: "bg-indigo-400", text: "text-indigo-600" },
+  REJECTED:             { dot: "bg-red-400",    text: "text-red-500"    },
+  CONVERTED:            { dot: "bg-purple-400", text: "text-purple-600" },
 };
-const INLINE_STATUS_OPTIONS = ["PENDING", "REJECTED", "CONVERTED"];
+const INLINE_STATUS_OPTIONS = ["PENDING", "DISCUSSION_COMPLETED", "REJECTED", "CONVERTED"];
 const STATUS_LABELS: Record<string, string> = {
-  PENDING: "Pending", REJECTED: "Rejected", CONVERTED: "Converted",
+  PENDING: "Pending", DISCUSSION_COMPLETED: "Discussion Completed", REJECTED: "Rejected", CONVERTED: "Converted",
 };
 const PAGE_SIZE_OPTIONS = [10, 25, 50] as const;
 
@@ -502,7 +503,7 @@ export default function EmployeeLeadsPage() {
                           onChange={(e) => { setStatusFilter(e.target.value); setCurrentPage(1); }}
                           className="h-8 w-full rounded-lg border border-[#e5e9f2] px-2 text-sm text-gray-700 focus:border-[#0971fe] focus:outline-none">
                           <option value="">All Statuses</option>
-                          {["PENDING", "REJECTED"].map((v) => (
+                          {["PENDING", "DISCUSSION_COMPLETED", "REJECTED"].map((v) => (
                             <option key={v} value={v}>{STATUS_LABELS[v]}</option>
                           ))}
                         </select>

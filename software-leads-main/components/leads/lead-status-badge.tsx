@@ -7,10 +7,11 @@ interface LeadStatusBadgeProps {
 
 export function LeadStatusBadge({ status }: LeadStatusBadgeProps) {
   const variantMap: Record<LeadStatus, string> = {
-    Pending:        "pending",
-    "Under Review": "default",
-    Rejected:       "rejected",
-    Converted:      "default",
+    Pending:                "pending",
+    "Discussion Completed": "secondary",
+    "Under Review":         "default",
+    Rejected:               "rejected",
+    Converted:              "default",
   };
 
   return <Badge variant={variantMap[status] as any}>{status}</Badge>;

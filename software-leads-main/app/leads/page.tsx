@@ -88,6 +88,13 @@ const STATUS_CFG: Record<
     border: "border-blue-200 dark:border-blue-800/40",
     label: "Follow Up",
   },
+  DISCUSSION_COMPLETED: {
+    dot: "bg-indigo-400 shadow-indigo-400/50",
+    text: "text-indigo-700 dark:text-indigo-300",
+    bg: "bg-indigo-50 dark:bg-indigo-950/40",
+    border: "border-indigo-200 dark:border-indigo-800/40",
+    label: "Discussion Completed",
+  },
   CONVERTED: {
     dot: "bg-emerald-400 shadow-emerald-400/50",
     text: "text-emerald-700 dark:text-emerald-300",
@@ -104,11 +111,12 @@ const STATUS_CFG: Record<
   },
 };
 
-const INLINE_STATUS_OPTIONS = ["PENDING", "REJECTED", "CONVERTED"];
+const INLINE_STATUS_OPTIONS = ["PENDING", "DISCUSSION_COMPLETED", "REJECTED", "CONVERTED"];
 const STATUS_LABELS: Record<string, string> = {
-  PENDING: "Pending",
-  REJECTED: "Rejected",
-  CONVERTED: "Converted",
+  PENDING:              "Pending",
+  DISCUSSION_COMPLETED: "Discussion Completed",
+  REJECTED:             "Rejected",
+  CONVERTED:            "Converted",
 };
 
 const PAGE_SIZE_OPTIONS = [10, 25, 50] as const;
@@ -1284,7 +1292,7 @@ export default function LeadsPage() {
                           className="h-9 w-full rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 px-2.5 text-xs font-medium text-slate-900 dark:text-white focus:border-blue-600 focus:outline-none"
                         >
                           <option value="">All Statuses</option>
-                          {["PENDING", "REJECTED"].map((v) => (
+                          {["PENDING", "DISCUSSION_COMPLETED", "REJECTED"].map((v) => (
                             <option key={v} value={v}>
                               {STATUS_LABELS[v]}
                             </option>

@@ -17,7 +17,8 @@ export const LEAD_SOURCES = [
 export const LEAD_STATUSES = [
     'PENDING',
     'CONVERTED',
-    'REJECTED'
+    'REJECTED',
+    'DISCUSSION_COMPLETED'
 ] as const
 
 export const REMINDER_STATUSES = [

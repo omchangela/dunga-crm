@@ -6,6 +6,7 @@ import {
     LEAD_SOURCES,
     LEAD_STATUSES
 } from '../lib/enums'
+import { sendProjectDiscussionSummary } from '../lib/whatsapp'
 
 // ─── SCHEMAS ──────────────────────────────────────
 
@@ -189,6 +190,20 @@ export const updateLead = async (req: Request, res: Response) => {
         data:  { ...data, email: data.email || null }
     })
 
+    if (data.status === 'DISCUSSION_COMPLETED') {
+        try {
+            const serviceName = updated.serviceType ? updated.serviceType.replace(/_/g, ' ') : 'Software Solution'
+            await sendProjectDiscussionSummary({
+                clientPhone:    updated.phone,
+                clientName:     updated.fullName,
+                projectSummary: `Discussion completed for ${serviceName} requirements.`,
+                projectId:      updated.id
+            })
+        } catch (waErr) {
+            console.error('[WhatsApp] Failed to send lead discussion summary:', waErr)
+        }
+    }
+
     res.status(200).json({
         success: true,
         message: 'Lead updated successfully',
@@ -235,6 +250,20 @@ export const updateStatus = async (req: Request, res: Response) => {
         where: { id },
         data:  { status: parsed.data.status }
     })
+
+    if (parsed.data.status === 'DISCUSSION_COMPLETED') {
+        try {
+            const serviceName = updated.serviceType ? updated.serviceType.replace(/_/g, ' ') : 'Software Solution'
+            await sendProjectDiscussionSummary({
+                clientPhone:    updated.phone,
+                clientName:     updated.fullName,
+                projectSummary: `Discussion completed for ${serviceName} requirements.`,
+                projectId:      updated.id
+            })
+        } catch (waErr) {
+            console.error('[WhatsApp] Failed to send lead discussion summary:', waErr)
+        }
+    }
 
     res.status(200).json({
         success: true,
