@@ -251,24 +251,21 @@ Warm Regards,
     const validUntilFormatted = new Intl.DateTimeFormat('en-IN', { dateStyle: 'medium' }).format(validUntil)
     const estNo = `EST-${Date.now().toString().slice(-6)}`
 
+    const sampleDocFallback = 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf'
+    const docUrl = (data.pdfUrl && !data.pdfUrl.startsWith('data:')) ? data.pdfUrl : sampleDocFallback
+
     return sendWhatsAppMessage({
         recipientPhone: data.clientPhone,
         recipientName: data.clientName,
         message,
-        mediaUrl: data.pdfUrl || undefined,
+        mediaUrl: docUrl,
         type: 'QUOTATION',
         referenceId: data.projectId,
         template: {
             name: 'estimation',
             language: 'en',
-            headerDocumentUrl: data.pdfUrl || undefined,
-            bodyParams: [
-                data.clientName,
-                data.projectName,
-                estNo,
-                data.budget.toLocaleString('en-IN'),
-                validUntilFormatted
-            ]
+            headerDocumentUrl: docUrl,
+            bodyParams: []
         }
     })
 }

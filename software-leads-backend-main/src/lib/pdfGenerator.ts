@@ -213,51 +213,42 @@ function renderEstimationQuotationPdf(doc: any, project: any) {
   doc.text('AMOUNT (Rs.)', colX[4], y + 4, { width: colW[4], align: 'right' });
   y += 18;
 
-  // Prepare table items
+  // Prepare table items - show main developer / service pricing only
   let tableItems: { label: string; qty: string; rateStr: string; amountStr: string; isFree?: boolean }[] = [];
 
-  if (Array.isArray(project.costHistory) && project.costHistory.length > 0) {
-    project.costHistory.forEach((item: any, idx: number) => {
-      const amt = Number(item.amount || 0);
-      tableItems.push({
-        label: item.label || item.description || `Module ${idx + 1}`,
-        qty: '1 Service',
-        rateStr: amt > 0 ? amt.toLocaleString('en-IN') : '0 (FREE)',
-        amountStr: amt > 0 ? amt.toLocaleString('en-IN') : 'INCLUDED',
-        isFree: amt === 0
-      });
-    });
-  } else if (Array.isArray(project.featureItems) && project.featureItems.length > 0) {
-    project.featureItems.forEach((item: any, idx: number) => {
-      const amt = Number(item.price || item.amount || 0);
-      tableItems.push({
-        label: item.name || item.title || `Feature ${idx + 1}`,
-        qty: '1 Feature',
-        rateStr: amt > 0 ? amt.toLocaleString('en-IN') : '0 (FREE)',
-        amountStr: amt > 0 ? amt.toLocaleString('en-IN') : 'INCLUDED',
-        isFree: amt === 0
-      });
-    });
-  } else if (Array.isArray(project.webOverview) && project.webOverview.length > 0) {
-    const totalBudget = Number(project.budget || project.projectCost || 0);
-    const itemCost = Math.round(totalBudget / Math.max(1, project.webOverview.length));
-    project.webOverview.forEach((desc: string) => {
-      tableItems.push({
-        label: desc,
-        qty: '1 Module',
-        rateStr: itemCost.toLocaleString('en-IN'),
-        amountStr: itemCost.toLocaleString('en-IN'),
-      });
-    });
+  const rawService = String(project.serviceType || project.projectType || '').toUpperCase();
+  const projName = (project.projectName || '').trim();
+
+  let mainServiceLabel = '';
+  if (rawService.includes('WEB') && rawService.includes('APP')) {
+    mainServiceLabel = projName
+      ? `Full Stack App & Web Development — ${projName}`
+      : 'Full Stack App & Web Development Services';
+  } else if (rawService.includes('WEB')) {
+    mainServiceLabel = projName
+      ? `Web Development Services — ${projName}`
+      : 'Web Development & Web Application Services';
+  } else if (rawService.includes('APP')) {
+    mainServiceLabel = projName
+      ? `Mobile App Development (iOS & Android) — ${projName}`
+      : 'Mobile Application Development Services';
+  } else if (rawService.includes('SOFTWARE') || rawService.includes('OTHERS') || !rawService) {
+    mainServiceLabel = projName
+      ? `Software Development Services — ${projName}`
+      : 'Software Development & Engineering Services';
   } else {
-    const totalBudget = Number(project.budget || project.projectCost || 0);
-    tableItems.push({
-      label: `${project.projectName || 'Software Development'} — Core System Design, API & Implementation`,
-      qty: '1 Package',
-      rateStr: totalBudget.toLocaleString('en-IN'),
-      amountStr: totalBudget.toLocaleString('en-IN'),
-    });
+    const formatted = String(project.serviceType).replace(/_/g, ' ');
+    mainServiceLabel = projName ? `${formatted} — ${projName}` : `${formatted} Services`;
   }
+
+  const totalBudget = Number(project.budget || project.projectCost || displayTotal);
+  tableItems.push({
+    label: mainServiceLabel,
+    qty: '1 Package',
+    rateStr: totalBudget.toLocaleString('en-IN'),
+    amountStr: totalBudget.toLocaleString('en-IN'),
+    isFree: false
+  });
 
   // Always include Zero Value / Free Addons requested by user
   tableItems.push({
@@ -318,68 +309,6 @@ function renderEstimationQuotationPdf(doc: any, project: any) {
   doc.fillColor('#ffffff').fontSize(9.5).font('Helvetica-Bold').text(`Rs. ${finalTotal.toLocaleString('en-IN')}/-`, 340, y + 5, { width: 150, align: 'center' });
 
   y += totalRowH + 12;
-
-  // ── DETAILED SCOPE OF WORK (POINT-WISE MODULE BREAKDOWN) ──────────────────
-  const hasWeb = Array.isArray(project.webOverview) && project.webOverview.length > 0;
-  const hasApp = Array.isArray(project.appOverview) && project.appOverview.length > 0;
-  const hasAdmin = Array.isArray(project.adminOverview) && project.adminOverview.length > 0;
-
-  if (hasWeb || hasApp || hasAdmin) {
-    ensureSpace(45);
-    doc.rect(45, y, 450, 18).fill(primaryTeal);
-    doc.fillColor('#ffffff').fontSize(8.5).font('Helvetica-Bold').text('PROJECT SCOPE & DETAILED FEATURE BREAKDOWN', 53, y + 4, { lineBreak: false });
-    y += 24;
-
-    // 1. Web Application Scope
-    if (hasWeb) {
-      ensureSpace(35);
-      doc.fillColor(primaryTeal).fontSize(9).font('Helvetica-Bold').text('WEB APPLICATION & DASHBOARD SCOPE:', 45, y);
-      y += 14;
-
-      project.webOverview.forEach((item: string) => {
-        const bulletText = `•  ${item}`;
-        const itemH = doc.heightOfString(bulletText, { width: 440 });
-        ensureSpace(itemH + 4);
-        doc.fillColor(darkText).fontSize(8).font('Helvetica').text(bulletText, 55, y, { width: 440 });
-        y += itemH + 3;
-      });
-      y += 6;
-    }
-
-    // 2. Mobile Application Scope
-    if (hasApp) {
-      ensureSpace(35);
-      doc.fillColor(accentOrange).fontSize(9).font('Helvetica-Bold').text('MOBILE APPLICATION SCOPE (iOS & ANDROID):', 45, y);
-      y += 14;
-
-      project.appOverview.forEach((item: string) => {
-        const bulletText = `•  ${item}`;
-        const itemH = doc.heightOfString(bulletText, { width: 440 });
-        ensureSpace(itemH + 4);
-        doc.fillColor(darkText).fontSize(8).font('Helvetica').text(bulletText, 55, y, { width: 440 });
-        y += itemH + 3;
-      });
-      y += 6;
-    }
-
-    // 3. Admin Portal Scope
-    if (hasAdmin) {
-      ensureSpace(35);
-      doc.fillColor(primaryTeal).fontSize(9).font('Helvetica-Bold').text('ADMIN PORTAL & SYSTEM SECURITY SCOPE:', 45, y);
-      y += 14;
-
-      project.adminOverview.forEach((item: string) => {
-        const bulletText = `•  ${item}`;
-        const itemH = doc.heightOfString(bulletText, { width: 440 });
-        ensureSpace(itemH + 4);
-        doc.fillColor(darkText).fontSize(8).font('Helvetica').text(bulletText, 55, y, { width: 440 });
-        y += itemH + 3;
-      });
-      y += 6;
-    }
-
-    y += 8;
-  }
 
   // ── 4. MILESTONE PAYMENT CHUNKS BREAKDOWN ─────────────────────────────────
   ensureSpace(70);
