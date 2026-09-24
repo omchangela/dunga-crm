@@ -101,7 +101,7 @@ export const sendWhatsAppMessage = async (options: SendWhatsAppMessageOptions): 
 
     const apiUrl = process.env.WHATSAPP_API_URL || 'https://crm.woxapi.in/api/v2/whatsapp-business/messages'
     const apiKey = process.env.WHATSAPP_API_KEY || process.env.WHATSAPP_TOKEN || 'fb291bf29374e66ed0237db0d57fc1658e7a2cd2201ef6068f9d0f7e24ba9bca'
-    const phoneNoId = process.env.WHATSAPP_PHONE_NO_ID || '1345340821990898'
+    const phoneNoId = process.env.WHATSAPP_PHONE_NO_ID || '1381643891694755'
     const isEnabled = process.env.WHATSAPP_ENABLED === 'true' || Boolean(apiKey)
 
     console.log(`[WhatsApp] Dispatching ${options.type} message to ${cleanPhone} (Enabled: ${isEnabled})`)
@@ -223,29 +223,11 @@ export const sendWhatsAppMessage = async (options: SendWhatsAppMessageOptions): 
 
 /**
  * 1. QUOTATION / ESTIMATION PROPOSAL ALERT
+ *    Template: estimation (en) — Document header
+ *    Params: No body params (static template)
  */
 export const sendQuotationAlert = async (data: QuotationAlertPayload) => {
     const formattedBudget = new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(data.budget)
-    const serviceName = data.serviceType ? data.serviceType.replace(/_/g, ' ') : 'Software Solution'
-
-    const message = 
-`📄 *DUNGA TECHNOLOGIES — Project Quotation*
-
-Dear *${data.clientName}*,
-
-Thank you for choosing *Dunga Technologies*! We have generated your formal Estimation Proposal for:
-
-🚀 *Project:* ${data.projectName}
-🛠 *Service:* ${serviceName}
-💰 *Estimated Budget:* ${formattedBudget}
-
-${data.pdfUrl ? `📥 *View / Download Proposal PDF:*\n${data.pdfUrl}\n` : ''}
-Our technical team is ready to commence work upon your approval. Please feel free to reply to this message if you have any questions or customization requests.
-
-Warm Regards,  
-*Dunga Technologies Support Team*  
-🌐 www.dungatechnologies.com`
-
     const validUntil = new Date()
     validUntil.setDate(validUntil.getDate() + 15)
     const validUntilFormatted = new Intl.DateTimeFormat('en-IN', { dateStyle: 'medium' }).format(validUntil)
@@ -254,9 +236,11 @@ Warm Regards,
     const sampleDocFallback = 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf'
     const docUrl = (data.pdfUrl && !data.pdfUrl.startsWith('data:')) ? data.pdfUrl : sampleDocFallback
 
+    const message = `Quotation for ${data.projectName} — Est. ${formattedBudget}. Valid until ${validUntilFormatted}. — Dunga Technologies`
+
     return sendWhatsAppMessage({
         recipientPhone: data.clientPhone,
-        recipientName: data.clientName,
+        recipientName:  data.clientName,
         message,
         mediaUrl: docUrl,
         type: 'QUOTATION',
@@ -272,112 +256,99 @@ Warm Regards,
 
 /**
  * 2. PAYMENT RECEIPT ALERT
+ *    Template: final_estimation (en_GB) — Document header
+ *    Params: {{1}}=name, {{2}}=project, {{3}}=receiptNo,
+ *            {{4}}=amount, {{5}}=date
  */
 export const sendPaymentReceiptAlert = async (data: PaymentReceiptPayload) => {
-    const formattedAmount = new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 2 }).format(data.amount)
-    const formattedBalance = data.remainingBalance !== undefined
-        ? new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 2 }).format(data.remainingBalance)
-        : null
+    const fmt = (n: number) => new Intl.NumberFormat('en-IN', { maximumFractionDigits: 0 }).format(n)
+    const receiptNo = `RCP-${Date.now().toString().slice(-6)}`
+    const today = new Intl.DateTimeFormat('en-IN', { dateStyle: 'medium' }).format(new Date())
 
-    const message = 
-`✅ *PAYMENT CONFIRMATION — Dunga Technologies*
+    const message = `Payment received for ${data.projectName}. Amount: ₹${fmt(data.amount)}. Remaining: ₹${fmt(data.remainingBalance ?? 0)}. Thank you!`
 
-Dear *${data.clientName}*,
-
-We have successfully received your payment. Here are the details:
-
-📁 *Project:* ${data.projectName}
-💵 *Amount Paid:* *${formattedAmount}*
-💳 *Payment Mode:* ${data.paymentMethod}
-${data.transactionId ? `🔖 *Transaction ID:* ${data.transactionId}\n` : ''}${formattedBalance ? `📊 *Remaining Project Balance:* ${formattedBalance}\n` : ''}
-${data.receiptPdfUrl ? `🧾 *Download Official Receipt PDF:*\n${data.receiptPdfUrl}\n` : ''}
-Thank you for your business!
-
-Best Regards,  
-*Accounts & Billing Desk*  
-*Dunga Technologies*`
+    const sampleDocFallback = 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf'
+    const docUrl = (data.receiptPdfUrl && !data.receiptPdfUrl.startsWith('data:')) ? data.receiptPdfUrl : sampleDocFallback
 
     return sendWhatsAppMessage({
         recipientPhone: data.clientPhone,
-        recipientName: data.clientName,
+        recipientName:  data.clientName,
         message,
-        mediaUrl: data.receiptPdfUrl || undefined,
+        mediaUrl: docUrl,
         type: 'PAYMENT_RECEIPT',
-        referenceId: data.projectId
+        referenceId: data.projectId,
+        template: {
+            name: 'final_estimation',
+            language: 'en',
+            headerDocumentUrl: docUrl,
+            bodyParams: [
+                data.clientName,
+                data.projectName,
+                receiptNo,
+                fmt(data.amount),
+                today
+            ]
+        }
     })
 }
 
 /**
  * 3. PROJECT DEADLINE NOTICE
+ *    Template: project_discussion_summary (en_GB)
+ *    Params: {{1}}=name, {{2}}=summary (single-line, no newlines)
  */
 export const sendProjectDeadlineReminder = async (data: DeadlineReminderPayload) => {
     const formattedDate = new Intl.DateTimeFormat('en-IN', { dateStyle: 'medium' }).format(new Date(data.deadlineDate))
+    const summary = `Project: ${data.projectName} | Target Delivery: ${formattedDate} | Days Remaining: ${data.daysRemaining} days | Our team is on track for timely delivery.`
 
-    const message = 
-`⏰ *PROJECT MILESTONE & DEADLINE UPDATE*
-
-Hello *${data.clientName}*,
-
-This is a milestone update regarding your ongoing project with *Dunga Technologies*:
-
-🚀 *Project:* ${data.projectName}
-📅 *Target Delivery Date:* *${formattedDate}*
-⏳ *Time Remaining:* *${data.daysRemaining} days*
-
-Our engineering team is actively finalizing the milestones for deployment and quality assurance.
-
-If you have any feedback or upcoming launch schedules to align, please contact your project manager.
-
-Best Regards,  
-*Project Delivery Team*  
-*Dunga Technologies*`
+    const message = `Deadline reminder for ${data.projectName}. Target: ${formattedDate} (${data.daysRemaining} days remaining).`
 
     return sendWhatsAppMessage({
         recipientPhone: data.clientPhone,
-        recipientName: data.clientName,
+        recipientName:  data.clientName,
         message,
         type: 'PROJECT_DEADLINE',
-        referenceId: data.projectId
+        referenceId: data.projectId,
+        template: {
+            name: 'project_discussion_summary',
+            language: 'en_GB',
+            bodyParams: [
+                data.clientName,
+                summary
+            ]
+        }
     })
 }
 
 /**
  * 4. SUBSCRIPTION EXPIRY REMINDER (15-Day & 7-Day Alert)
+ *    Template: project_discussion_summary (en_GB)
+ *    Params: {{1}}=name, {{2}}=summary (single-line, no newlines)
  */
 export const sendSubscriptionRenewalReminder = async (data: SubscriptionReminderPayload) => {
-    const formattedDate = new Intl.DateTimeFormat('en-IN', { dateStyle: 'medium' }).format(new Date(data.renewalDate))
-    const formattedAmount = new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(data.amount)
+    const formattedDate   = new Intl.DateTimeFormat('en-IN', { dateStyle: 'medium' }).format(new Date(data.renewalDate))
+    const formattedAmount = new Intl.NumberFormat('en-IN', { maximumFractionDigits: 0 }).format(data.amount)
+    const reminderTier    = data.daysRemaining <= 7 ? '7-Day Renewal Notice' : '15-Day Renewal Notice'
+    const notifType       = data.daysRemaining <= 7 ? 'SUBSCRIPTION_7D' : 'SUBSCRIPTION_15D'
 
-    const urgencyEmoji = data.daysRemaining <= 7 ? '🚨' : '⚠️'
-    const reminderTier = data.daysRemaining <= 7 ? '7-Day Renewal Notice' : '15-Day Renewal Notice'
+    const summary = `${reminderTier} | Plan: ${data.subscriptionName}${data.category ? ` | Category: ${data.category}` : ''} | Renewal Fee: Rs.${formattedAmount} | Due Date: ${formattedDate} (${data.daysRemaining} days remaining). Kindly renew to avoid service interruption.`
 
-    const message = 
-`${urgencyEmoji} *SUBSCRIPTION RENEWAL REMINDER (${reminderTier})*
-
-Dear *${data.clientName}*,
-
-Your subscription service with *Dunga Technologies* is due for upcoming renewal:
-
-📦 *Subscription Plan:* ${data.subscriptionName}
-${data.category ? `🏷 *Category:* ${data.category}\n` : ''}💳 *Renewal Fee:* *${formattedAmount}*
-📅 *Renewal Date:* *${formattedDate}* (*${data.daysRemaining} days remaining*)
-
-To ensure uninterrupted uptime, maintenance, and cloud services, kindly process your renewal prior to the due date.
-
-Need assistance or an updated invoice? Reply to this message directly.
-
-Sincerely,  
-*Subscription Services Team*  
-*Dunga Technologies*`
-
-    const notifType = data.daysRemaining <= 7 ? 'SUBSCRIPTION_7D' : 'SUBSCRIPTION_15D'
+    const message = `Subscription renewal (${reminderTier}): ${data.subscriptionName} — Rs.${formattedAmount} due on ${formattedDate}.`
 
     return sendWhatsAppMessage({
         recipientPhone: data.clientPhone,
-        recipientName: data.clientName,
+        recipientName:  data.clientName,
         message,
         type: notifType,
-        referenceId: data.subscriptionId
+        referenceId: data.subscriptionId,
+        template: {
+            name: 'project_discussion_summary',
+            language: 'en_GB',
+            bodyParams: [
+                data.clientName,
+                summary
+            ]
+        }
     })
 }
 
@@ -392,25 +363,15 @@ export interface ProjectDiscussionSummaryPayload {
 
 /**
  * 5. PROJECT DISCUSSION SUMMARY
- *    WhatsApp template: project_discussion_summary (ID: 1634097878331749)
- *    Body: Hello {{1}}, Thank you for discussing your project...
- *          Project Summary: {{2}}
+ *    Template: project_discussion_summary (en_GB)
+ *    Params: {{1}}=name, {{2}}=projectSummary (single-line)
  */
 export const sendProjectDiscussionSummary = async (data: ProjectDiscussionSummaryPayload) => {
+    // Flatten any newlines in summary to avoid #132018 param error
+    const flatSummary = data.projectSummary.replace(/\n/g, ' | ')
+
     const message =
-`📋 *PROJECT DISCUSSION SUMMARY — Dunga Technologies*
-
-Hello *${data.clientName}*,
-
-Thank you for discussing your project with Dunga Technologies.
-
-Project Summary:
-${data.projectSummary}
-
-We have noted the discussed requirements and will proceed with the next step accordingly.
-
-Thank you,
-*Dunga Technologies*`
+`Project discussion summary for ${data.clientName}: ${data.projectSummary.substring(0, 100)}...`
 
     return sendWhatsAppMessage({
         recipientPhone: data.clientPhone,
@@ -420,10 +381,10 @@ Thank you,
         referenceId: data.projectId,
         template: {
             name: 'project_discussion_summary',
-            language: 'en',
+            language: 'en_GB',
             bodyParams: [
                 data.clientName,
-                data.projectSummary
+                flatSummary
             ]
         }
     })

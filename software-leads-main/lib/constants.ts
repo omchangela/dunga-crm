@@ -13,6 +13,7 @@ export const LOAN_TYPES: LoanType[] = [
 
 export const LEAD_STATUSES: LeadStatus[] = [
   "Pending",
+  "Discussion Completed",
   "Under Review",
   "Rejected",
   "Converted",

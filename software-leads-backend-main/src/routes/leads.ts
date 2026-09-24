@@ -9,7 +9,8 @@ import {
     toggleFollowUp,
     bulkFollowUp,
     bulkImport,
-    getImportStatus
+    getImportStatus,
+    saveLeadDiscussion
 } from '../controllers/leads'
 import {
     SERVICE_TYPES,
@@ -55,6 +56,7 @@ router.put('/:id',            updateLead)
 router.delete('/:id',         deleteLead)
 router.patch('/:id/status',   updateStatus)
 router.patch('/:id/follow-up', toggleFollowUp)
+router.post('/:id/discussion', saveLeadDiscussion)
 
 
 // POST /api/leads/:leadId/convert

@@ -17,6 +17,7 @@ import {
 } from '../lib/enums'
 import { pdfQueue } from '../lib/queues/pdfQueue'
 import supabase, { BUCKET } from '../lib/supabase'
+import { sendDiscussionCompletedAlert } from '../lib/whatsapp'
 
 // ─── HELPERS ──────────────────────────────────────
 
@@ -700,7 +701,7 @@ export const getEmployeeLeads = async (req: EmployeeRequest, res: Response) => {
     if (status && status !== 'ALL') {
         where.status = status
     } else if (!status) {
-        where.status = { in: ['PENDING', 'REJECTED'] }
+        where.status = { in: ['PENDING', 'DISCUSSION_COMPLETED', 'REJECTED'] }
     }
 
     const [leads, total] = await Promise.all([
@@ -1654,7 +1655,7 @@ export const updateEmployeeLeadStatus = async (req: EmployeeRequest, res: Respon
     }
 
     const schema = z.object({
-        status: z.enum(['PENDING', 'REJECTED'])
+        status: z.enum(['PENDING', 'DISCUSSION_COMPLETED', 'REJECTED'])
     })
 
     const parsed = schema.safeParse(req.body)
@@ -1671,6 +1672,15 @@ export const updateEmployeeLeadStatus = async (req: EmployeeRequest, res: Respon
         where: { id: leadId },
         data:  { status: parsed.data.status }
     })
+
+    if (parsed.data.status === 'DISCUSSION_COMPLETED' && lead.status !== 'DISCUSSION_COMPLETED') {
+        sendDiscussionCompletedAlert({
+            leadPhone: lead.phone,
+            leadName: lead.fullName,
+            serviceType: lead.serviceType,
+            leadId: lead.id
+        }).catch(err => console.error('[WhatsApp Employee Lead Discussion Error]:', err))
+    }
 
     res.status(200).json({
         success: true,

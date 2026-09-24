@@ -6,10 +6,11 @@ import { updateLeadStatus } from "@/lib/store";
 import type { LeadStatus } from "@/types";
 
 const STATUSES: { value: LeadStatus; label: string; dot: string }[] = [
-  { value: "Pending",      label: "Pending",      dot: "bg-yellow-400" },
-  { value: "Under Review", label: "Under Review", dot: "bg-blue-400"   },
-  { value: "Rejected",     label: "Rejected",     dot: "bg-red-400"    },
-  { value: "Converted",    label: "Converted",    dot: "bg-purple-400" },
+  { value: "Pending",              label: "Pending",              dot: "bg-yellow-400" },
+  { value: "Discussion Completed", label: "Discussion Completed", dot: "bg-indigo-500" },
+  { value: "Under Review",         label: "Under Review",         dot: "bg-blue-400"   },
+  { value: "Rejected",             label: "Rejected",             dot: "bg-red-400"    },
+  { value: "Converted",            label: "Converted",            dot: "bg-purple-400" },
 ];
 
 interface Props {

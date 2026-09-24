@@ -16,8 +16,9 @@ const SOURCES = [
 ];
 
 const STATUSES = [
-  { value: "PENDING",  label: "Pending"  },
-  { value: "REJECTED", label: "Rejected" },
+  { value: "PENDING",              label: "Pending"              },
+  { value: "DISCUSSION_COMPLETED", label: "Discussion Completed" },
+  { value: "REJECTED",             label: "Rejected"             },
 ];
 
 const PROJECT_TYPES = [
