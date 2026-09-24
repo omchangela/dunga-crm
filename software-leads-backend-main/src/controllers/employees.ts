@@ -1679,7 +1679,7 @@ export const updateEmployeeLeadStatus = async (req: EmployeeRequest, res: Respon
             leadName: lead.fullName,
             serviceType: lead.serviceType,
             leadId: lead.id
-        }).catch(err => console.error('[WhatsApp Employee Lead Discussion Error]:', err))
+        }).catch((err: any) => console.error('[WhatsApp Employee Lead Discussion Error]:', err))
     }
 
     res.status(200).json({

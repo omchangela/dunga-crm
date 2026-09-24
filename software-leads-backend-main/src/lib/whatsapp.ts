@@ -389,3 +389,31 @@ export const sendProjectDiscussionSummary = async (data: ProjectDiscussionSummar
         }
     })
 }
+
+// ─── BACKWARD-COMPATIBLE ALIAS ────────────────────────────────────
+
+export interface DiscussionCompletedAlertPayload {
+    leadPhone: string
+    leadName: string
+    serviceType?: string | null
+    leadId?: string
+    summaryNote?: string
+}
+
+/**
+ * Alias for backward compatibility — used by employees.ts & testDiscussionCompleted.ts
+ * Maps to sendProjectDiscussionSummary (template: project_discussion_summary)
+ */
+export const sendDiscussionCompletedAlert = async (data: DiscussionCompletedAlertPayload) => {
+    const service = data.serviceType ? data.serviceType.replace(/_/g, ' ') : 'Software Solution'
+    const summary = data.summaryNote
+        ? `Service: ${service} | Note: ${data.summaryNote}`
+        : `Service: ${service} | Discussion completed. Our team will proceed with the next steps.`
+
+    return sendProjectDiscussionSummary({
+        clientPhone:    data.leadPhone,
+        clientName:     data.leadName,
+        projectSummary: summary,
+        projectId:      data.leadId
+    })
+}

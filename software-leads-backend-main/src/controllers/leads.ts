@@ -391,3 +391,53 @@ const getProgressMessage = (progress: number): string => {
     if (progress < 100) return 'Inserting leads...'
     return 'Almost done...'
 }
+
+// ─── SAVE LEAD DISCUSSION ─────────────────────────────────────────
+
+/**
+ * POST /api/leads/:id/discussion
+ * Saves a discussion note/summary to a lead and optionally sends a WhatsApp notification.
+ */
+export const saveLeadDiscussion = async (req: Request, res: Response) => {
+    try {
+        const leadId = req.params.id as string
+        const { note, summary, sendWhatsApp } = req.body as {
+            note?: string
+            summary?: string
+            sendWhatsApp?: boolean
+        }
+
+        const discussionText = summary || note || ''
+
+        const lead = await prisma.lead.findUnique({ where: { id: leadId } })
+        if (!lead) {
+            return res.status(404).json({ success: false, message: 'Lead not found' })
+        }
+
+        const updated = await prisma.lead.update({
+            where: { id: leadId },
+            data:  { status: 'DISCUSSION_COMPLETED' }
+        })
+
+        // Optionally fire WhatsApp notification
+        if (sendWhatsApp !== false && lead.phone) {
+            const serviceName = lead.serviceType ? lead.serviceType.replace(/_/g, ' ') : 'Software Solution'
+            const text = discussionText.trim() || `Discussion completed for ${serviceName} requirements.`
+            sendProjectDiscussionSummary({
+                clientPhone:    lead.phone,
+                clientName:     lead.fullName,
+                projectSummary: text,
+                projectId:      lead.id
+            }).catch((err: any) => console.error('[WhatsApp Discussion Note Error]:', err))
+        }
+
+        return res.status(200).json({
+            success: true,
+            message: 'Discussion marked as completed successfully',
+            data:    updated
+        })
+    } catch (err: any) {
+        console.error('[saveLeadDiscussion Error]:', err)
+        return res.status(500).json({ success: false, message: 'Failed to save discussion' })
+    }
+}
