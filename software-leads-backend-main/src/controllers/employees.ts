@@ -17,7 +17,11 @@ import {
 } from '../lib/enums'
 import { pdfQueue } from '../lib/queues/pdfQueue'
 import supabase, { BUCKET } from '../lib/supabase'
-import { sendDiscussionCompletedAlert } from '../lib/whatsapp'
+import {
+    sendDiscussionCompletedAlert,
+    sendOnboardingAlert,
+    sendCeoWelcomeMessage
+} from '../lib/whatsapp'
 
 // ─── HELPERS ──────────────────────────────────────
 
@@ -1749,6 +1753,23 @@ export const convertEmployeeLead = async (req: EmployeeRequest, res: Response) =
             data:  { status: 'CONVERTED' }
         })
     ])
+
+    // Trigger Automated WhatsApp Onboarding & CEO Welcome
+    if (customer.phone) {
+        sendOnboardingAlert({
+            clientPhone: customer.phone,
+            clientName:  customer.fullName,
+            customerId:  customer.id
+        }).catch(err => console.error('[WhatsApp Onboarding Trigger Error]', err))
+
+        setTimeout(() => {
+            sendCeoWelcomeMessage({
+                clientPhone: customer.phone,
+                clientName:  customer.fullName,
+                customerId:  customer.id
+            }).catch(err => console.error('[WhatsApp CEO Message Trigger Error]', err))
+        }, 1500)
+    }
 
     res.status(201).json({
         success: true,

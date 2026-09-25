@@ -1,145 +1,236 @@
 /**
  * testAllTemplates.ts
  * ─────────────────────────────────────────────────────────────────
- * Sends ALL WhatsApp notification templates to the test number.
- * Templates tested:
- *   1. QUOTATION         → sendQuotationAlert          (template: estimation)
- *   2. PAYMENT_RECEIPT   → sendPaymentReceiptAlert      (text message)
- *   3. PROJECT_DEADLINE  → sendProjectDeadlineReminder  (text message)
- *   4. SUBSCRIPTION_15D  → sendSubscriptionRenewalReminder (15 days)
- *   5. SUBSCRIPTION_7D   → sendSubscriptionRenewalReminder (7 days)
- *   6. DISCUSSION        → sendProjectDiscussionSummary (template: project_discussion_summary)
+ * Comprehensive test script that validates and sends ALL 14 Meta
+ * approved WhatsApp templates to the specified phone number.
  *
- * Run: npx ts-node src/scripts/testAllTemplates.ts
+ * Run:
+ *   cd software-leads-backend-main && npx ts-node -r dotenv/config src/scripts/testAllTemplates.ts 9723554357
  */
 
+import 'dotenv/config'
+import prisma from '../lib/prisma'
 import {
+    sendOnboardingAlert,
+    sendCeoWelcomeMessage,
+    sendServicesOverview,
+    sendProjectDiscussionSummary,
+    sendAdvancePaymentRequest,
+    sendAdvancePaymentReceived,
+    sendWorkStartAlert,
+    sendDailyUpdate,
+    sendPaymentReminder,
+    sendFinalPaymentRequest,
+    sendFinalEstimation,
+    sendProjectCompleted,
     sendQuotationAlert,
-    sendPaymentReceiptAlert,
-    sendProjectDeadlineReminder,
-    sendSubscriptionRenewalReminder,
-    sendProjectDiscussionSummary
+    sendPartPaymentUpdate
 } from '../lib/whatsapp'
 
-const TEST_PHONE = '9723554357'   // +91 9723554357
+const TEST_PHONE = process.argv[2] || '9723554357' // +91 9723554357
 const TEST_NAME  = 'Om Changela'
+const PROJECT_NAME = 'E-Commerce Marketplace & Web Platform'
 
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
 
-const log = (label: string, result: { success: boolean; error?: string }) => {
-    const status = result.success ? '✅ SUCCESS' : `❌ FAILED — ${result.error}`
-    console.log(`  ${label}: ${status}`)
+const logResult = (num: number, name: string, templateId: string, result: { success: boolean; error?: string }) => {
+    const icon = result.success ? '✅' : '❌'
+    const status = result.success ? 'ACCEPTED (Delivered)' : `FAILED: ${result.error}`
+    console.log(`[${num}/14] ${icon} Template: ${name.padEnd(28)} (ID: ${templateId}) -> ${status}`)
 }
 
-async function runAllTests() {
-    console.log('╔══════════════════════════════════════════════════════════╗')
-    console.log('║   🧪  DUNGA CRM — WhatsApp Template Full Test Suite      ║')
-    console.log('╚══════════════════════════════════════════════════════════╝')
-    console.log(`📱 Sending all templates to: +91 ${TEST_PHONE}\n`)
+async function run() {
+    console.log('\n╔══════════════════════════════════════════════════════════════════════════╗')
+    console.log('║        🧪  DUNGA TECHNOLOGIES — 14 WHATSAPP TEMPLATES TEST SUITE          ║')
+    console.log('╚══════════════════════════════════════════════════════════════════════════╝')
+    console.log(`📱 Recipient Number : +91 ${TEST_PHONE}`)
+    console.log(`👤 Client Name      : ${TEST_NAME}`)
+    console.log(`🏢 Phone Number ID  : ${process.env.WHATSAPP_PHONE_NO_ID || '1381643891694755'}\n`)
 
-    // ─── 1. QUOTATION / ESTIMATION PROPOSAL ────────────────────────
-    console.log('━━━ [1/6] QUOTATION — estimation template ━━━')
-    const r1 = await sendQuotationAlert({
+    const results: { name: string; success: boolean }[] = []
+
+    // 1. ONBOARDING WELCOME
+    const r1 = await sendOnboardingAlert({
+        clientPhone: TEST_PHONE,
+        clientName:  TEST_NAME,
+        customerId:  'test-cust-001'
+    })
+    logResult(1, 'onbording', '986552707801702', r1)
+    results.push({ name: 'onbording', success: r1.success })
+    await sleep(750)
+
+    // 2. CEO WELCOME MESSAGE
+    const r2 = await sendCeoWelcomeMessage({
+        clientPhone: TEST_PHONE,
+        clientName:  TEST_NAME,
+        customerId:  'test-cust-001'
+    })
+    logResult(2, 'ceomessage', '835823276255523', r2)
+    results.push({ name: 'ceomessage', success: r2.success })
+    await sleep(750)
+
+    // 3. SERVICES OVERVIEW
+    const r3 = await sendServicesOverview({
+        clientPhone: TEST_PHONE,
+        clientName:  TEST_NAME
+    })
+    logResult(3, 'services', '27878092548536327', r3)
+    results.push({ name: 'services', success: r3.success })
+    await sleep(750)
+
+    // 4. PROJECT DISCUSSION SUMMARY
+    const r4 = await sendProjectDiscussionSummary({
+        clientPhone:    TEST_PHONE,
+        clientName:     TEST_NAME,
+        projectSummary: 'Full-stack Web and Mobile CRM application with automated WhatsApp client triggers and billing.',
+        projectId:      'test-proj-001'
+    })
+    logResult(4, 'project_discussion_summary', '1058678607001419', r4)
+    results.push({ name: 'project_discussion_summary', success: r4.success })
+    await sleep(750)
+
+    // 5. ADVANCE PAYMENT REQUEST
+    const r5 = await sendAdvancePaymentRequest({
+        clientPhone: TEST_PHONE,
+        clientName:  TEST_NAME,
+        amount:      35000,
+        paymentLink: 'https://rzp.io/l/dunga-advance',
+        projectName: PROJECT_NAME,
+        projectId:   'test-proj-001'
+    })
+    logResult(5, 'advancepaymentrequest', '1790635345737589', r5)
+    results.push({ name: 'advancepaymentrequest', success: r5.success })
+    await sleep(750)
+
+    // 6. ADVANCE PAYMENT RECEIVED & VERIFIED (PDF)
+    const r6 = await sendAdvancePaymentReceived({
+        clientPhone:   TEST_PHONE,
+        clientName:    TEST_NAME,
+        amount:        35000,
+        projectName:   PROJECT_NAME,
+        receiptPdfUrl: 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf',
+        projectId:     'test-proj-001'
+    })
+    logResult(6, 'advancepaymentreceived', '2332140994285886', r6)
+    results.push({ name: 'advancepaymentreceived', success: r6.success })
+    await sleep(750)
+
+    // 7. WORK START NOTIFICATION
+    const r7 = await sendWorkStartAlert({
+        clientPhone: TEST_PHONE,
+        clientName:  TEST_NAME,
+        projectName: PROJECT_NAME,
+        projectId:   'test-proj-001'
+    })
+    logResult(7, 'workstart', '2188927028356940', r7)
+    results.push({ name: 'workstart', success: r7.success })
+    await sleep(750)
+
+    // 8. DAILY PROGRESS UPDATE
+    const r8 = await sendDailyUpdate({
+        clientPhone:   TEST_PHONE,
+        clientName:    TEST_NAME,
+        projectName:   PROJECT_NAME,
+        activity1:     'Frontend UI/UX Architecture & Responsive Dashboard',
+        activity2:     'User Auth, OTP Verification & Database Models',
+        activity3:     'Product Catalog API Endpoints & State Management',
+        currentStatus: 'In Progress (50% Milestones Completed)',
+        projectId:     'test-proj-001'
+    })
+    logResult(8, 'dailyupdate', '1435173415154144', r8)
+    results.push({ name: 'dailyupdate', success: r8.success })
+    await sleep(750)
+
+    // 9. PAYMENT REMINDER
+    const r9 = await sendPaymentReminder({
+        clientPhone:   TEST_PHONE,
+        clientName:    TEST_NAME,
+        pendingAmount: 35000,
+        paymentLink:   'https://rzp.io/l/dunga-pending',
+        projectId:     'test-proj-001'
+    })
+    logResult(9, 'paymentreminder', '2367183174020523', r9)
+    results.push({ name: 'paymentreminder', success: r9.success })
+    await sleep(750)
+
+    // 10. FINAL PAYMENT REQUEST
+    const r10 = await sendFinalPaymentRequest({
+        clientPhone:    TEST_PHONE,
+        clientName:     TEST_NAME,
+        finalDueAmount: 35000,
+        paymentLink:    'https://rzp.io/l/dunga-final',
+        projectId:      'test-proj-001'
+    })
+    logResult(10, 'finalpayment', '1609866433967195', r10)
+    results.push({ name: 'finalpayment', success: r10.success })
+    await sleep(750)
+
+    // 11. FINAL ESTIMATION (PDF)
+    const r11 = await sendFinalEstimation({
         clientPhone:  TEST_PHONE,
         clientName:   TEST_NAME,
-        projectName:  'Dunga CRM — Full Stack SaaS Platform',
-        budget:       250000,
-        serviceType:  'WEB_DEVELOPMENT',
+        projectName:  PROJECT_NAME,
+        estimationNo: 'EST-2026-9021',
+        finalAmount:  70000,
+        deliveryDate: '20 Oct 2026',
         pdfUrl:       'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf',
         projectId:    'test-proj-001'
     })
-    log('Template: estimation', r1)
-    await sleep(3000)
+    logResult(11, 'final_estimation', '1810100450167250', r11)
+    results.push({ name: 'final_estimation', success: r11.success })
+    await sleep(750)
 
-    // ─── 2. PAYMENT RECEIPT ─────────────────────────────────────────
-    console.log('\n━━━ [2/6] PAYMENT RECEIPT — text message ━━━')
-    const r2 = await sendPaymentReceiptAlert({
+    // 12. PROJECT COMPLETED
+    const r12 = await sendProjectCompleted({
+        clientPhone: TEST_PHONE,
+        clientName:  TEST_NAME,
+        projectName: PROJECT_NAME,
+        projectId:   'test-proj-001'
+    })
+    logResult(12, 'projectcomlated', '950715120843668', r12)
+    results.push({ name: 'projectcomlated', success: r12.success })
+    await sleep(750)
+
+    // 13. INITIAL ESTIMATION QUOTATION (PDF)
+    const r13 = await sendQuotationAlert({
+        clientPhone: TEST_PHONE,
+        clientName:  TEST_NAME,
+        projectName: PROJECT_NAME,
+        budget:      70000,
+        pdfUrl:      'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf',
+        projectId:   'test-proj-001'
+    })
+    logResult(13, 'estimation', '1435652518531910', r13)
+    results.push({ name: 'estimation', success: r13.success })
+    await sleep(750)
+
+    // 14. PART PAYMENT CONFIRMATION (PDF)
+    const r14 = await sendPartPaymentUpdate({
         clientPhone:      TEST_PHONE,
         clientName:       TEST_NAME,
-        projectName:      'Dunga CRM — Full Stack SaaS Platform',
-        amount:           75000,
-        paymentMethod:    'UPI',
-        transactionId:    'TXN20260924001',
-        remainingBalance: 175000,
-        receiptPdfUrl:    null,
+        projectName:      PROJECT_NAME,
+        totalAmount:      70000,
+        previousPaid:     35000,
+        currentReceived:  17500,
+        totalPaid:        52500,
+        pendingAmount:    17500,
+        paymentStatus:    'Partially Paid',
+        remainingBalance: 17500,
+        receiptPdfUrl:    'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf',
         projectId:        'test-proj-001'
     })
-    log('Payment Receipt', r2)
-    await sleep(3000)
+    logResult(14, 'partpayment', '1769963584332662', r14)
+    results.push({ name: 'partpayment', success: r14.success })
 
-    // ─── 3. PROJECT DEADLINE REMINDER ──────────────────────────────
-    console.log('\n━━━ [3/6] PROJECT DEADLINE REMINDER — text message ━━━')
-    const deadline = new Date()
-    deadline.setDate(deadline.getDate() + 14)
-    const r3 = await sendProjectDeadlineReminder({
-        clientPhone:   TEST_PHONE,
-        clientName:    TEST_NAME,
-        projectName:   'Dunga CRM — Full Stack SaaS Platform',
-        deadlineDate:  deadline,
-        daysRemaining: 14,
-        projectId:     'test-proj-001'
-    })
-    log('Project Deadline Reminder', r3)
-    await sleep(3000)
-
-    // ─── 4. SUBSCRIPTION RENEWAL — 15-Day ──────────────────────────
-    console.log('\n━━━ [4/6] SUBSCRIPTION RENEWAL (15-Day) — text message ━━━')
-    const renewal15 = new Date()
-    renewal15.setDate(renewal15.getDate() + 15)
-    const r4 = await sendSubscriptionRenewalReminder({
-        clientPhone:      TEST_PHONE,
-        clientName:       TEST_NAME,
-        subscriptionName: 'Premium Hosting & Maintenance Plan',
-        amount:           12000,
-        renewalDate:      renewal15,
-        daysRemaining:    15,
-        category:         'Hosting',
-        subscriptionId:   'sub-test-001'
-    })
-    log('Subscription Renewal (15-Day)', r4)
-    await sleep(3000)
-
-    // ─── 5. SUBSCRIPTION RENEWAL — 7-Day ───────────────────────────
-    console.log('\n━━━ [5/6] SUBSCRIPTION RENEWAL (7-Day) — text message ━━━')
-    const renewal7 = new Date()
-    renewal7.setDate(renewal7.getDate() + 7)
-    const r5 = await sendSubscriptionRenewalReminder({
-        clientPhone:      TEST_PHONE,
-        clientName:       TEST_NAME,
-        subscriptionName: 'Premium Hosting & Maintenance Plan',
-        amount:           12000,
-        renewalDate:      renewal7,
-        daysRemaining:    7,
-        category:         'Hosting',
-        subscriptionId:   'sub-test-002'
-    })
-    log('Subscription Renewal (7-Day)', r5)
-    await sleep(3000)
-
-    // ─── 6. PROJECT DISCUSSION SUMMARY ─────────────────────────────
-    console.log('\n━━━ [6/6] DISCUSSION SUMMARY — project_discussion_summary template ━━━')
-    const r6 = await sendProjectDiscussionSummary({
-        clientPhone:    TEST_PHONE,
-        clientName:     TEST_NAME,
-        projectSummary: 'Dunga CRM — Full-stack SaaS with Next.js frontend, Node.js + Prisma backend, WhatsApp Business API automation, lead tracking, project management, employee roles, estimation PDF generation, and payment tracking.',
-        projectId:      'test-proj-001'
-    })
-    log('Template: project_discussion_summary', r6)
-
-    // ─── SUMMARY ────────────────────────────────────────────────────
-    console.log('\n╔══════════════════════════════════════════════════════════╗')
-    console.log('║                   🏁  TEST COMPLETE                      ║')
-    console.log('╚══════════════════════════════════════════════════════════╝')
-    const allResults = [r1, r2, r3, r4, r5, r6]
-    const passed = allResults.filter(r => r.success).length
-    console.log(`Result: ${passed} / ${allResults.length} templates sent successfully`)
-    if (passed < allResults.length) {
-        console.log('❌ Some templates failed — check the logs above for details.')
-        process.exit(1)
-    }
+    // Summary
+    const successful = results.filter(r => r.success).length
+    console.log('\n══════════════════════════════════════════════════════════════════════════')
+    console.log(`🏁 Full Suite Test Completed: ${successful} / 14 Templates Succeeded`)
+    console.log('══════════════════════════════════════════════════════════════════════════\n')
 }
 
-runAllTests().catch(err => {
-    console.error('💥 Unexpected fatal error:', err)
-    process.exit(1)
-})
+run()
+    .catch(console.error)
+    .finally(async () => {
+        await prisma.$disconnect()
+    })

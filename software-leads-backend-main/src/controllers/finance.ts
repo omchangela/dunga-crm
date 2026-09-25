@@ -2,7 +2,11 @@ import { Request, Response } from 'express'
 import prisma from '../lib/prisma'
 import { z } from 'zod'
 import { generateReceiptPdf } from '../lib/generateReceiptPdf'
-import { sendPaymentReceiptAlert } from '../lib/whatsapp'
+import {
+    sendPaymentReceiptAlert,
+    sendAdvancePaymentReceived,
+    sendPartPaymentUpdate
+} from '../lib/whatsapp'
 
 // ─── HELPERS ──────────────────────────────────────
 
@@ -282,18 +286,37 @@ export const collectPayment = async (req: Request, res: Response) => {
 
     // Trigger WhatsApp notification asynchronously (safe non-blocking)
     if (project.customer?.phone) {
-        sendPaymentReceiptAlert({
-            clientPhone: project.customer.phone,
-            clientName: project.customer.fullName,
-            projectName: project.projectName,
-            amount: data.amount,
-            paymentMethod: data.paymentMethod,
-            transactionId: data.transactionId || null,
-            remainingBalance,
-            projectId: project.id
-        }).catch(err => {
-            console.error('[WhatsApp Trigger Error]', err)
-        })
+        if (previousPaid === 0) {
+            // First payment is the advance payment
+            sendAdvancePaymentReceived({
+                clientPhone:   project.customer.phone,
+                clientName:    project.customer.fullName,
+                amount:        data.amount,
+                projectName:   project.projectName,
+                receiptPdfUrl: null,
+                projectId:     project.id
+            }).catch(err => {
+                console.error('[WhatsApp Advance Payment Receipt Error]', err)
+            })
+        } else {
+            // Subsequent payments are part payments
+            sendPartPaymentUpdate({
+                clientPhone:      project.customer.phone,
+                clientName:       project.customer.fullName,
+                projectName:      project.projectName,
+                totalAmount:      totalBudget,
+                previousPaid,
+                currentReceived:  data.amount,
+                totalPaid:        newTotalPaid,
+                pendingAmount:    remainingBalance,
+                paymentStatus:    remainingBalance === 0 ? 'Completed' : 'Partially Paid',
+                remainingBalance,
+                receiptPdfUrl:    null,
+                projectId:        project.id
+            }).catch(err => {
+                console.error('[WhatsApp Part Payment Error]', err)
+            })
+        }
     }
 
     res.status(201).json({

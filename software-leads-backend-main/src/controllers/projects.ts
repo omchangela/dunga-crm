@@ -8,7 +8,17 @@ import supabase, { BUCKET } from '../lib/supabase'
 import { generateProjectPdf } from '../lib/generateProjectPdf'
 import { sendEstimationEmail } from '../lib/sendEstimationEmail'
 import { sendProjectPdfEmail } from '../lib/sendProjectPdfEmail'
-import { sendQuotationAlert, sendProjectDiscussionSummary } from '../lib/whatsapp'
+import {
+    sendQuotationAlert,
+    sendProjectDiscussionSummary,
+    sendWorkStartAlert,
+    sendProjectCompleted,
+    sendAdvancePaymentRequest,
+    sendFinalPaymentRequest,
+    sendPaymentReminder,
+    sendDailyUpdate,
+    sendFinalEstimation
+} from '../lib/whatsapp'
 
 
 // ─── HELPERS ──────────────────────────────────────
@@ -376,8 +386,8 @@ export const updateProject = async (req: Request, res: Response) => {
         data
     })
 
-    // ─── WhatsApp: Discussion Completed notification ───────────────────────
-    if (data.status === 'DISCUSSION_COMPLETED') {
+    // ─── WhatsApp Automated Status Notifications ───────────────────────
+    if (data.status) {
         try {
             const project = await prisma.project.findUnique({
                 where: { id },
@@ -385,16 +395,32 @@ export const updateProject = async (req: Request, res: Response) => {
             })
 
             if (project?.customer?.phone) {
-                const summary = data.description || project.description || 'Project requirements discussed with client.'
-                await sendProjectDiscussionSummary({
-                    clientPhone:    project.customer.phone,
-                    clientName:     project.customer.fullName,
-                    projectSummary: summary,
-                    projectId:      id
-                })
+                if (data.status === 'DISCUSSION_COMPLETED') {
+                    const summary = data.description || project.description || 'Project requirements discussed with client.'
+                    await sendProjectDiscussionSummary({
+                        clientPhone:    project.customer.phone,
+                        clientName:     project.customer.fullName,
+                        projectSummary: summary,
+                        projectId:      id
+                    })
+                } else if (data.status === 'ACTIVE' || data.status === 'CONVERTED') {
+                    await sendWorkStartAlert({
+                        clientPhone: project.customer.phone,
+                        clientName:  project.customer.fullName,
+                        projectName: project.projectName,
+                        projectId:   id
+                    })
+                } else if (data.status === 'COMPLETED') {
+                    await sendProjectCompleted({
+                        clientPhone: project.customer.phone,
+                        clientName:  project.customer.fullName,
+                        projectName: project.projectName,
+                        projectId:   id
+                    })
+                }
             }
         } catch (waErr) {
-            console.error('[WhatsApp] Failed to send project_discussion_summary:', waErr)
+            console.error('[WhatsApp Status Trigger Notice]:', waErr)
         }
     }
 
@@ -1079,6 +1105,174 @@ export const sendEstimationWhatsApp = async (req: Request, res: Response) => {
         })
     } catch (err: any) {
         console.error('[EstimationWA] Error:', err)
+        res.status(500).json({ success: false, message: 'Failed to send WhatsApp', error: err?.message })
+    }
+}
+
+// SEND ADVANCE PAYMENT REQUEST (Template: advancepaymentrequest, ID: 1790635345737589)
+export const sendAdvancePaymentRequestController = async (req: Request, res: Response) => {
+    const id = req.params.id as string
+    const project = await prisma.project.findUnique({
+        where: { id },
+        include: { customer: { select: { fullName: true, phone: true } } }
+    })
+
+    if (!project || !project.customer?.phone) {
+        res.status(404).json({ success: false, message: 'Project or customer phone not found' })
+        return
+    }
+
+    try {
+        const amount = req.body.amount || Math.round(Number(project.budget || 50000) * 0.5)
+        const paymentLink = req.body.paymentLink || 'https://rzp.io/l/dunga-advance'
+
+        const result = await sendAdvancePaymentRequest({
+            clientPhone: project.customer.phone,
+            clientName:  project.customer.fullName,
+            amount,
+            paymentLink,
+            projectName: project.projectName,
+            projectId:   project.id
+        })
+
+        res.status(200).json({ success: result.success, message: 'Advance payment request WhatsApp sent', result })
+    } catch (err: any) {
+        res.status(500).json({ success: false, message: 'Failed to send WhatsApp', error: err?.message })
+    }
+}
+
+// SEND FINAL PAYMENT REQUEST (Template: finalpayment, ID: 1609866433967195)
+export const sendFinalPaymentRequestController = async (req: Request, res: Response) => {
+    const id = req.params.id as string
+    const project = await prisma.project.findUnique({
+        where: { id },
+        include: { customer: { select: { fullName: true, phone: true } } }
+    })
+
+    if (!project || !project.customer?.phone) {
+        res.status(404).json({ success: false, message: 'Project or customer phone not found' })
+        return
+    }
+
+    try {
+        const finalDueAmount = req.body.finalDueAmount || req.body.amount || Math.round(Number(project.budget || 50000) * 0.25)
+        const paymentLink = req.body.paymentLink || 'https://rzp.io/l/dunga-final'
+
+        const result = await sendFinalPaymentRequest({
+            clientPhone: project.customer.phone,
+            clientName:  project.customer.fullName,
+            finalDueAmount,
+            paymentLink,
+            projectId:   project.id
+        })
+
+        res.status(200).json({ success: result.success, message: 'Final payment request WhatsApp sent', result })
+    } catch (err: any) {
+        res.status(500).json({ success: false, message: 'Failed to send WhatsApp', error: err?.message })
+    }
+}
+
+// SEND PAYMENT REMINDER (Template: paymentreminder, ID: 2367183174020523)
+export const sendPaymentReminderController = async (req: Request, res: Response) => {
+    const id = req.params.id as string
+    const project = await prisma.project.findUnique({
+        where: { id },
+        include: { customer: { select: { fullName: true, phone: true } } }
+    })
+
+    if (!project || !project.customer?.phone) {
+        res.status(404).json({ success: false, message: 'Project or customer phone not found' })
+        return
+    }
+
+    try {
+        const pendingAmount = req.body.pendingAmount || req.body.amount || Math.round(Number(project.budget || 50000) * 0.5)
+        const paymentLink = req.body.paymentLink || 'https://rzp.io/l/dunga-pending'
+
+        const result = await sendPaymentReminder({
+            clientPhone: project.customer.phone,
+            clientName:  project.customer.fullName,
+            pendingAmount,
+            paymentLink,
+            projectId:   project.id
+        })
+
+        res.status(200).json({ success: result.success, message: 'Payment reminder WhatsApp sent', result })
+    } catch (err: any) {
+        res.status(500).json({ success: false, message: 'Failed to send WhatsApp', error: err?.message })
+    }
+}
+
+// SEND DAILY PROGRESS UPDATE (Template: dailyupdate, ID: 1435173415154144)
+export const sendDailyUpdateController = async (req: Request, res: Response) => {
+    const id = req.params.id as string
+    const project = await prisma.project.findUnique({
+        where: { id },
+        include: { customer: { select: { fullName: true, phone: true } } }
+    })
+
+    if (!project || !project.customer?.phone) {
+        res.status(404).json({ success: false, message: 'Project or customer phone not found' })
+        return
+    }
+
+    try {
+        const activity1 = req.body.activity1 || 'Architecture & API Endpoints Development'
+        const activity2 = req.body.activity2 || 'UI/UX Implementation & Responsive Design'
+        const activity3 = req.body.activity3 || 'Database Optimization & Testing'
+        const currentStatus = req.body.currentStatus || 'In Progress (Active Development)'
+
+        const result = await sendDailyUpdate({
+            clientPhone: project.customer.phone,
+            clientName:  project.customer.fullName,
+            projectName: project.projectName,
+            activity1,
+            activity2,
+            activity3,
+            currentStatus,
+            projectId:   project.id
+        })
+
+        res.status(200).json({ success: result.success, message: 'Daily update WhatsApp sent', result })
+    } catch (err: any) {
+        res.status(500).json({ success: false, message: 'Failed to send WhatsApp', error: err?.message })
+    }
+}
+
+// SEND FINAL ESTIMATION WHATSAPP (Template: final_estimation, ID: 1810100450167250)
+export const sendFinalEstimationWhatsApp = async (req: Request, res: Response) => {
+    const id = req.params.id as string
+    const project = await prisma.project.findUnique({
+        where: { id },
+        include: { customer: { select: { fullName: true, phone: true, applicationNumber: true } } }
+    })
+
+    if (!project || !project.customer?.phone) {
+        res.status(404).json({ success: false, message: 'Project or customer phone not found' })
+        return
+    }
+
+    try {
+        let pdfUrl = project.estimationPdfUrl && !project.estimationPdfUrl.startsWith('data:')
+            ? project.estimationPdfUrl
+            : null
+
+        const estNo = project.customer?.applicationNumber || `EST-${Date.now().toString().slice(-6)}`
+        const deliveryDate = project.deadline ? new Date(project.deadline).toLocaleDateString('en-IN') : '45 Working Days'
+
+        const result = await sendFinalEstimation({
+            clientPhone:  project.customer.phone,
+            clientName:   project.customer.fullName,
+            projectName:  project.projectName,
+            estimationNo: estNo,
+            finalAmount:  project.budget || 50000,
+            deliveryDate,
+            pdfUrl,
+            projectId:    project.id
+        })
+
+        res.status(200).json({ success: result.success, message: 'Final estimation WhatsApp sent', result })
+    } catch (err: any) {
         res.status(500).json({ success: false, message: 'Failed to send WhatsApp', error: err?.message })
     }
 }

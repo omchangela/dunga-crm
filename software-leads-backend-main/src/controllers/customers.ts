@@ -2,6 +2,7 @@ import { Request, Response } from 'express'
 import prisma from '../lib/prisma'
 import { z } from 'zod'
 import { SERVICE_TYPES } from '../lib/enums'
+import { sendOnboardingAlert, sendCeoWelcomeMessage } from '../lib/whatsapp'
 
 // ─── HELPERS ──────────────────────────────────────
 
@@ -73,6 +74,23 @@ prisma.customer.create({
             data:  { status: 'CONVERTED' }
         })
     ])
+
+    // Trigger Automated WhatsApp Onboarding & CEO Welcome
+    if (customer.phone) {
+        sendOnboardingAlert({
+            clientPhone: customer.phone,
+            clientName:  customer.fullName,
+            customerId:  customer.id
+        }).catch(err => console.error('[WhatsApp Onboarding Trigger Error]', err))
+
+        setTimeout(() => {
+            sendCeoWelcomeMessage({
+                clientPhone: customer.phone,
+                clientName:  customer.fullName,
+                customerId:  customer.id
+            }).catch(err => console.error('[WhatsApp CEO Message Trigger Error]', err))
+        }, 1500)
+    }
 
     res.status(201).json({
         success: true,

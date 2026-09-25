@@ -13,6 +13,11 @@ import {
     generatePdf,
     downloadPdf,
     sendEstimationWhatsApp,
+    sendAdvancePaymentRequestController,
+    sendFinalPaymentRequestController,
+    sendPaymentReminderController,
+    sendDailyUpdateController,
+    sendFinalEstimationWhatsApp,
     generateProjectPdfController,
     downloadProjectPdf,
     getPdfJobStatus,
@@ -36,6 +41,11 @@ router.post('/:id/features',        addFeature)
 router.delete('/:id/features/:featureId', removeFeature)
 router.post('/:id/pdf',               generatePdf)
 router.post('/:id/pdf/whatsapp',      sendEstimationWhatsApp)
+router.post('/:id/whatsapp/advance-request',       sendAdvancePaymentRequestController)
+router.post('/:id/whatsapp/final-payment-request', sendFinalPaymentRequestController)
+router.post('/:id/whatsapp/payment-reminder',      sendPaymentReminderController)
+router.post('/:id/whatsapp/daily-update',          sendDailyUpdateController)
+router.post('/:id/whatsapp/final-estimation',      sendFinalEstimationWhatsApp)
 router.get('/:id/pdf',                downloadPdf)
 router.post('/:id/project-pdf',  generateProjectPdfController)
 router.get('/:id/project-pdf',   downloadProjectPdf)
