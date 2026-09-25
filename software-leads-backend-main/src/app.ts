@@ -179,6 +179,20 @@ app.all('/api/seed_leads', async (req, res) => {
 // ─── PUBLIC ROUTES ──────────────────────────────
 app.use('/api/auth', authRoutes)
 
+// Public PDF Serving & Direct Download for WhatsApp Meta Cloud API
+import {
+    handlePublicPdfUpload,
+    handlePublicPdfDownload,
+    handleDynamicEstimationPdf,
+    handleDynamicReceiptPdf
+} from './controllers/publicPdfController'
+
+app.post('/api/public/pdf/upload', express.json({ limit: '15mb' }), handlePublicPdfUpload)
+app.get('/api/public/pdf/download/:fileId', handlePublicPdfDownload)
+app.get('/api/public/pdf/download/:fileId/:fileName', handlePublicPdfDownload)
+app.get('/api/public/pdf/estimation/:id', handleDynamicEstimationPdf)
+app.get('/api/public/pdf/receipt/:id', handleDynamicReceiptPdf)
+
 // ─── PROTECTED ROUTES ───────────────────────────
 app.use('/api/leads',                            requireAuth, leadRoutes)
 app.use('/api/leads/:leadId/reminders',          requireAuth, reminderRoutes)

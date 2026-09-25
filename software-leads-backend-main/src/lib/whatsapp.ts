@@ -172,8 +172,40 @@ export const sendWhatsAppMessage = async (options: SendWhatsAppMessageOptions): 
 
 // ─── 14 OFFICIAL META TEMPLATES SUITE ────────────────────────────
 
-const DEFAULT_SAMPLE_PDF = 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf'
+export const LIVE_API_BASE = process.env.PUBLIC_API_URL || 'https://dunga-crm-api.onrender.com'
 const DEFAULT_SERVICES_IMAGE = 'https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=800'
+
+/**
+ * Uploads a generated PDF buffer to the public Render host so Meta WhatsApp Cloud API
+ * can download it directly over public HTTPS.
+ */
+export async function uploadPdfBufferToLiveHost(pdfBuffer: Buffer, fileName: string): Promise<string> {
+    const safeName = (fileName || 'document.pdf').replace(/[^a-zA-Z0-9._-]/g, '_')
+    try {
+        const res = await fetch(`${LIVE_API_BASE}/api/public/pdf/upload`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                fileName: safeName,
+                base64: pdfBuffer.toString('base64')
+            })
+        })
+        if (res.ok) {
+            const data: any = await res.json()
+            if (data?.url) return data.url
+        }
+    } catch (err) {
+        console.warn('[uploadPdfBufferToLiveHost] Remote host upload failed, trying local storage:', err)
+    }
+
+    try {
+        const { storePublicPdf } = require('../controllers/publicPdfController')
+        const stored = storePublicPdf(pdfBuffer, safeName)
+        return stored.url
+    } catch (e) {}
+
+    return `${LIVE_API_BASE}/api/public/pdf/download/document.pdf`
+}
 
 /**
  * 1. ONBOARDING WELCOME ALERT
@@ -341,13 +373,24 @@ export interface AdvancePaymentReceivedPayload {
     amount: number | string
     projectName: string
     receiptPdfUrl?: string | null
+    receiptPdfBuffer?: Buffer
     projectId?: string
 }
 export const sendAdvancePaymentReceived = async (data: AdvancePaymentReceivedPayload) => {
     const formattedAmount = typeof data.amount === 'number'
         ? data.amount.toLocaleString('en-IN')
         : String(data.amount)
-    const docUrl = (data.receiptPdfUrl && !data.receiptPdfUrl.startsWith('data:')) ? data.receiptPdfUrl : DEFAULT_SAMPLE_PDF
+
+    let docUrl = (data.receiptPdfUrl && !data.receiptPdfUrl.startsWith('data:')) ? data.receiptPdfUrl : null
+    if (!docUrl && data.receiptPdfBuffer) {
+        docUrl = await uploadPdfBufferToLiveHost(data.receiptPdfBuffer, 'Advance_Payment_Receipt.pdf')
+    }
+    if (!docUrl && data.projectId) {
+        docUrl = `${LIVE_API_BASE}/api/public/pdf/receipt/${data.projectId}`
+    }
+    if (!docUrl) {
+        docUrl = `${LIVE_API_BASE}/api/public/pdf/download/Advance_Receipt.pdf`
+    }
 
     return sendWhatsAppMessage({
         recipientPhone: data.clientPhone,
@@ -518,13 +561,24 @@ export interface FinalEstimationPayload {
     finalAmount: number | string
     deliveryDate: string
     pdfUrl?: string | null
+    pdfBuffer?: Buffer
     projectId?: string
 }
 export const sendFinalEstimation = async (data: FinalEstimationPayload) => {
     const formattedAmount = typeof data.finalAmount === 'number'
         ? data.finalAmount.toLocaleString('en-IN')
         : String(data.finalAmount)
-    const docUrl = (data.pdfUrl && !data.pdfUrl.startsWith('data:')) ? data.pdfUrl : DEFAULT_SAMPLE_PDF
+
+    let docUrl = (data.pdfUrl && !data.pdfUrl.startsWith('data:')) ? data.pdfUrl : null
+    if (!docUrl && data.pdfBuffer) {
+        docUrl = await uploadPdfBufferToLiveHost(data.pdfBuffer, 'Final_Estimation.pdf')
+    }
+    if (!docUrl && data.projectId) {
+        docUrl = `${LIVE_API_BASE}/api/public/pdf/estimation/${data.projectId}`
+    }
+    if (!docUrl) {
+        docUrl = `${LIVE_API_BASE}/api/public/pdf/download/Final_Estimation.pdf`
+    }
 
     return sendWhatsAppMessage({
         recipientPhone: data.clientPhone,
@@ -586,10 +640,20 @@ export interface QuotationAlertPayload {
     budget: number
     serviceType?: string
     pdfUrl?: string | null
+    pdfBuffer?: Buffer
     projectId?: string
 }
 export const sendQuotationAlert = async (data: QuotationAlertPayload) => {
-    const docUrl = (data.pdfUrl && !data.pdfUrl.startsWith('data:')) ? data.pdfUrl : DEFAULT_SAMPLE_PDF
+    let docUrl = (data.pdfUrl && !data.pdfUrl.startsWith('data:')) ? data.pdfUrl : null
+    if (!docUrl && data.pdfBuffer) {
+        docUrl = await uploadPdfBufferToLiveHost(data.pdfBuffer, 'Project_Estimation.pdf')
+    }
+    if (!docUrl && data.projectId) {
+        docUrl = `${LIVE_API_BASE}/api/public/pdf/estimation/${data.projectId}`
+    }
+    if (!docUrl) {
+        docUrl = `${LIVE_API_BASE}/api/public/pdf/download/Project_Estimation.pdf`
+    }
 
     return sendWhatsAppMessage({
         recipientPhone: data.clientPhone,
@@ -627,11 +691,22 @@ export interface PartPaymentUpdatePayload {
     paymentStatus: string
     remainingBalance: number | string
     receiptPdfUrl?: string | null
+    receiptPdfBuffer?: Buffer
     projectId?: string
 }
 export const sendPartPaymentUpdate = async (data: PartPaymentUpdatePayload) => {
     const fmt = (v: number | string) => typeof v === 'number' ? v.toLocaleString('en-IN') : String(v)
-    const docUrl = (data.receiptPdfUrl && !data.receiptPdfUrl.startsWith('data:')) ? data.receiptPdfUrl : DEFAULT_SAMPLE_PDF
+
+    let docUrl = (data.receiptPdfUrl && !data.receiptPdfUrl.startsWith('data:')) ? data.receiptPdfUrl : null
+    if (!docUrl && data.receiptPdfBuffer) {
+        docUrl = await uploadPdfBufferToLiveHost(data.receiptPdfBuffer, 'Payment_Receipt.pdf')
+    }
+    if (!docUrl && data.projectId) {
+        docUrl = `${LIVE_API_BASE}/api/public/pdf/receipt/${data.projectId}`
+    }
+    if (!docUrl) {
+        docUrl = `${LIVE_API_BASE}/api/public/pdf/download/Payment_Receipt.pdf`
+    }
 
     const attempt = await sendWhatsAppMessage({
         recipientPhone: data.clientPhone,

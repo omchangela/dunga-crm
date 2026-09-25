@@ -1088,20 +1088,22 @@ export const sendEstimationWhatsApp = async (req: Request, res: Response) => {
             }
         }
 
+        const pdfBuffer = await buildEstimationPdfBuffer(project)
+
         await sendQuotationAlert({
             clientPhone: project.customer.phone,
             clientName:  project.customer.fullName,
             projectName: project.projectName,
             budget:      project.budget,
             serviceType: project.serviceType,
-            pdfUrl:      pdfUrl,
+            pdfBuffer:   pdfBuffer,
             projectId:   project.id
         })
 
         res.status(200).json({
             success: true,
             message: 'Estimation WhatsApp sent successfully',
-            data: { phone: project.customer.phone, pdfUrl }
+            data: { phone: project.customer.phone }
         })
     } catch (err: any) {
         console.error('[EstimationWA] Error:', err)
@@ -1253,12 +1255,9 @@ export const sendFinalEstimationWhatsApp = async (req: Request, res: Response) =
     }
 
     try {
-        let pdfUrl = project.estimationPdfUrl && !project.estimationPdfUrl.startsWith('data:')
-            ? project.estimationPdfUrl
-            : null
-
         const estNo = project.customer?.applicationNumber || `EST-${Date.now().toString().slice(-6)}`
         const deliveryDate = project.deadline ? new Date(project.deadline).toLocaleDateString('en-IN') : '45 Working Days'
+        const pdfBuffer = await buildEstimationPdfBuffer(project)
 
         const result = await sendFinalEstimation({
             clientPhone:  project.customer.phone,
@@ -1267,7 +1266,7 @@ export const sendFinalEstimationWhatsApp = async (req: Request, res: Response) =
             estimationNo: estNo,
             finalAmount:  project.budget || 50000,
             deliveryDate,
-            pdfUrl,
+            pdfBuffer,
             projectId:    project.id
         })
 
