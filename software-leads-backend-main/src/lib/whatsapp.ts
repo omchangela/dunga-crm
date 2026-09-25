@@ -60,12 +60,13 @@ export const sendWhatsAppMessage = async (options: SendWhatsAppMessageOptions): 
     console.log(`[WhatsApp] Dispatching ${options.type} message to ${cleanPhone} (Enabled: ${isEnabled}, PhoneID: ${phoneNoId})`)
 
     // ─── ANTI-DUPLICATION GUARD ──────────────────────────────────────
+    const dedupType = options.template?.name ? `${options.type}:${options.template.name}` : options.type
     try {
-        const cooldownSeconds = 10
+        const cooldownSeconds = 5
         const recentDuplicate = await prisma.whatsAppNotificationLog.findFirst({
             where: {
                 recipientPhone: cleanPhone,
-                type: options.type,
+                type: dedupType,
                 status: 'SENT',
                 sentAt: {
                     gte: new Date(Date.now() - cooldownSeconds * 1000)
@@ -75,7 +76,7 @@ export const sendWhatsAppMessage = async (options: SendWhatsAppMessageOptions): 
         })
 
         if (recentDuplicate) {
-            console.warn(`[WhatsApp Deduplication] Suppressed duplicate '${options.type}' to ${cleanPhone}. Already sent ${Math.round((Date.now() - recentDuplicate.sentAt.getTime()) / 1000)}s ago.`)
+            console.warn(`[WhatsApp Deduplication] Suppressed duplicate '${dedupType}' to ${cleanPhone}. Already sent ${Math.round((Date.now() - recentDuplicate.sentAt.getTime()) / 1000)}s ago.`)
             return { success: true, messageId: recentDuplicate.id }
         }
     } catch (dedupErr) {
@@ -151,7 +152,7 @@ export const sendWhatsAppMessage = async (options: SendWhatsAppMessageOptions): 
     try {
         await prisma.whatsAppNotificationLog.create({
             data: {
-                type: options.type,
+                type: dedupType,
                 recipientPhone: cleanPhone,
                 recipientName: options.recipientName || null,
                 message: options.message,

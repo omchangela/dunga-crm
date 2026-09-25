@@ -97,7 +97,7 @@ export const handlePublicPdfUpload = async (req: Request, res: Response) => {
 
 // Handler for downloading/viewing cached PDF
 export const handlePublicPdfDownload = async (req: Request, res: Response) => {
-    const fileId = req.params.fileId
+    const fileId = req.params.fileId as string
     const item = getPublicPdf(fileId)
 
     if (!item) {
@@ -105,7 +105,7 @@ export const handlePublicPdfDownload = async (req: Request, res: Response) => {
         return
     }
 
-    const fileName = req.params.fileName || item.fileName || 'document.pdf'
+    const fileName = (req.params.fileName as string) || item.fileName || 'document.pdf'
     res.setHeader('Content-Type', 'application/pdf')
     res.setHeader('Content-Disposition', `inline; filename="${fileName}"`)
     res.setHeader('Cache-Control', 'public, max-age=86400')
@@ -114,7 +114,7 @@ export const handlePublicPdfDownload = async (req: Request, res: Response) => {
 
 // Handler for dynamically generating & serving estimation PDF on the fly
 export const handleDynamicEstimationPdf = async (req: Request, res: Response) => {
-    const projectId = req.params.id
+    const projectId = req.params.id as string
 
     const project = await prisma.project.findUnique({
         where: { id: projectId },
@@ -141,10 +141,10 @@ export const handleDynamicEstimationPdf = async (req: Request, res: Response) =>
 
 // Handler for dynamically generating & serving payment receipt PDF on the fly
 export const handleDynamicReceiptPdf = async (req: Request, res: Response) => {
-    const projectId = req.params.id
+    const projectId = req.params.id as string
     const payIndex = parseInt(String(req.query.payIndex || '0'))
 
-    const project = await prisma.project.findUnique({
+    const project: any = await prisma.project.findUnique({
         where: { id: projectId },
         include: {
             customer: true,
@@ -205,3 +205,4 @@ export const handleDynamicReceiptPdf = async (req: Request, res: Response) => {
         res.status(500).send('Failed to generate receipt PDF')
     }
 }
+
