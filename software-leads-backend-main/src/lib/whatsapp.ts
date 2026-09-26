@@ -182,21 +182,47 @@ const DEFAULT_SERVICES_IMAGE = 'https://images.unsplash.com/photo-1460925895917-
  */
 export async function uploadPdfBufferToLiveHost(pdfBuffer: Buffer, fileName: string): Promise<string> {
     const safeName = (fileName || 'document.pdf').replace(/[^a-zA-Z0-9._-]/g, '_')
+    const base64 = pdfBuffer.toString('base64')
+
+    // 1. Try curl directly first (fastest and handles DNS/IPv4/IPv6 gracefully on Linux/macOS)
     try {
-        const res = await fetch(`${LIVE_API_BASE}/api/public/pdf/upload`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                fileName: safeName,
-                base64: pdfBuffer.toString('base64')
-            })
-        })
-        if (res.ok) {
-            const data: any = await res.json()
-            if (data?.url) return data.url
+        const { execSync } = require('child_process')
+        const payloadJson = JSON.stringify({ fileName: safeName, base64 })
+        const res = execSync(
+            `curl -s --max-time 30 -X POST -H "Content-Type: application/json" -d @- "${LIVE_API_BASE}/api/public/pdf/upload"`,
+            { input: payloadJson, encoding: 'utf-8' }
+        )
+        const parsed = JSON.parse(res)
+        if (parsed?.url) {
+            console.log(`[uploadPdfBufferToLiveHost] PDF uploaded via curl to public host: ${parsed.url}`)
+            return parsed.url
         }
-    } catch (err) {
-        console.warn('[uploadPdfBufferToLiveHost] Remote host upload failed, trying local storage:', err)
+    } catch (curlErr: any) {
+        console.warn('[uploadPdfBufferToLiveHost] Curl upload notice:', curlErr?.message || curlErr)
+    }
+
+    // 2. Try Node fetch with retry
+    for (let attempt = 1; attempt <= 2; attempt++) {
+        try {
+            const controller = new AbortController()
+            const timeoutId = setTimeout(() => controller.abort(), 30000)
+            const res = await fetch(`${LIVE_API_BASE}/api/public/pdf/upload`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ fileName: safeName, base64 }),
+                signal: controller.signal
+            })
+            clearTimeout(timeoutId)
+            if (res.ok) {
+                const data: any = await res.json()
+                if (data?.url) {
+                    console.log(`[uploadPdfBufferToLiveHost] PDF uploaded to public host successfully: ${data.url}`)
+                    return data.url
+                }
+            }
+        } catch (err: any) {
+            if (attempt < 2) await new Promise(r => setTimeout(r, 1000))
+        }
     }
 
     try {
@@ -631,20 +657,38 @@ export const sendProjectCompleted = async (data: { clientPhone: string; clientNa
 /**
  * 13. INITIAL QUOTATION / ESTIMATION PROPOSAL
  *     Template: estimation (en) — Document Header
- *     Params: 0 body params
+ *     Params: {{1}}=clientName, {{2}}=projectName, {{3}}=estimationNo, {{4}}=amount, {{5}}=validUntil
  *     Trigger: Sent with preliminary quotation proposal PDF.
  */
 export interface QuotationAlertPayload {
     clientPhone: string
     clientName: string
     projectName: string
-    budget: number
+    budget: number | string
+    estimationNo?: string
+    validUntil?: string
     serviceType?: string
     pdfUrl?: string | null
     pdfBuffer?: Buffer
     projectId?: string
 }
 export const sendQuotationAlert = async (data: QuotationAlertPayload) => {
+    const formattedAmount = typeof data.budget === 'number'
+        ? data.budget.toLocaleString('en-IN')
+        : String(data.budget)
+
+    const estimationNo = data.estimationNo || `DT/EST/${new Date().getFullYear()}/${(data.projectId || '').replace(/[^a-zA-Z0-9]/g, '').slice(-5).toUpperCase() || Date.now().toString().slice(-5)}`
+
+    // Default validity: 15 days from now
+    let validUntilStr = data.validUntil
+    if (!validUntilStr) {
+        const vDate = new Date(Date.now() + 15 * 24 * 60 * 60 * 1000)
+        const day = String(vDate.getDate()).padStart(2, '0')
+        const month = String(vDate.getMonth() + 1).padStart(2, '0')
+        const year = vDate.getFullYear()
+        validUntilStr = `${day}/${month}/${year}`
+    }
+
     let docUrl = (data.pdfUrl && !data.pdfUrl.startsWith('data:')) ? data.pdfUrl : null
     if (!docUrl && data.pdfBuffer) {
         docUrl = await uploadPdfBufferToLiveHost(data.pdfBuffer, 'Project_Estimation.pdf')
@@ -656,24 +700,66 @@ export const sendQuotationAlert = async (data: QuotationAlertPayload) => {
         docUrl = `${LIVE_API_BASE}/api/public/pdf/download/Project_Estimation.pdf`
     }
 
-    return sendWhatsAppMessage({
+    const messageText = `Hello ${data.clientName} 👋\n\n` +
+        `Greetings from *Dunga Technologies*.\n\n` +
+        `We are pleased to share the project estimation for **${data.projectName}**.\n\n` +
+        `📄 Estimation No: ${estimationNo}\n` +
+        `💰 Estimated Investment: ₹${formattedAmount}\n` +
+        `📅 Valid Until: ${validUntilStr}\n\n` +
+        `Please find the *project estimation attached* for your review. It includes the proposed project scope, deliverables, pricing, and applicable terms.\n\n` +
+        `If you have any questions or would like to discuss the *project requirements, pricing, deliverables, or development timeline*, our team will be happy to assist you.\n\n` +
+        `We look forward to partnering with you.\n\n` +
+        `Best Regards,\n` +
+        `*Dunga Technologies*\n` +
+        `Technology Solutions & Developer Services`
+
+    const attempt = await sendWhatsAppMessage({
         recipientPhone: data.clientPhone,
         recipientName:  data.clientName,
-        message: `Estimation proposal for ${data.projectName} from Dunga Technologies.`,
+        message: messageText,
         mediaUrl: docUrl,
         type: 'QUOTATION',
         referenceId: data.projectId,
         template: {
-            name: 'estimation',
+            name: 'final_estimation',
             language: 'en',
             headerParams: [{
                 type: 'document',
                 url: docUrl,
                 filename: 'Project_Estimation.pdf'
             }],
-            bodyParams: []
+            bodyParams: [
+                data.clientName,
+                data.projectName,
+                estimationNo,
+                formattedAmount,
+                validUntilStr
+            ]
         }
     })
+
+    if (!attempt.success) {
+        return sendWhatsAppMessage({
+            recipientPhone: data.clientPhone,
+            recipientName:  data.clientName,
+            message: messageText,
+            mediaUrl: docUrl,
+            type: 'QUOTATION',
+            referenceId: data.projectId,
+            template: {
+                name: 'estimation',
+                language: 'en',
+                headerParams: [{
+                    type: 'document',
+                    url: docUrl,
+                    filename: 'Project_Estimation.pdf'
+                }],
+                bodyParams: []
+            }
+        })
+    }
+
+    return attempt
 }
 
 /**

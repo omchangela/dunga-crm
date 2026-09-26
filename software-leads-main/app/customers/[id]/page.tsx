@@ -348,12 +348,24 @@ export default function CustomerDetailPage() {
     }
   }
 
-  async function viewProjectPdf(kind: "estimation" | "project", projectId: string) {
+  async function viewProjectPdf(kind: "estimation" | "project", projectId: string, overrideBudget?: number) {
     try {
-      const res = kind === "estimation"
-        ? await projectsApi.getPdf(projectId)
-        : await projectsApi.getProjectPdf(projectId);
-      const url = res?.data?.downloadUrl ?? res?.data?.signedUrl ?? res?.data?.pdfUrl;
+      let url: string | null = null;
+      if (kind === "estimation") {
+        try {
+          const res = await projectsApi.getPdf(projectId);
+          url = res?.data?.downloadUrl ?? res?.data?.signedUrl ?? res?.data?.pdfUrl;
+        } catch (e: any) {
+          if (e?.status === 404 || overrideBudget) {
+            const genRes = await projectsApi.generatePdf(projectId, overrideBudget);
+            url = genRes?.data?.downloadUrl ?? genRes?.data?.signedUrl ?? genRes?.data?.pdfUrl;
+            await load();
+          }
+        }
+      } else {
+        const res = await projectsApi.getProjectPdf(projectId);
+        url = res?.data?.downloadUrl ?? res?.data?.signedUrl ?? res?.data?.pdfUrl;
+      }
       if (url) window.open(url, "_blank", "noopener,noreferrer");
       else showToast("PDF not available.");
     } catch (err: any) {
@@ -363,7 +375,7 @@ export default function CustomerDetailPage() {
 
   async function handleDownloadReceiptPdf(projectId: string, payIndex: number) {
     try {
-      const res = await projectsApi.getReceiptPdf(projectId, payIndex);
+      const res = await projectsApi.getReceiptPdf(projectId, payIndex, true);
       const url = res?.data?.downloadUrl ?? res?.data?.signedUrl;
       if (url) window.open(url, "_blank", "noopener,noreferrer");
       else showToast("Failed to generate payment receipt PDF.");
@@ -473,7 +485,7 @@ export default function CustomerDetailPage() {
       setProjForm(emptyProjForm);
       setShowAddProj(false);
       await load();
-      showToast("Project added.");
+      showToast("Project created & Estimation PDF sent via WhatsApp!");
     } catch (err: any) {
       setProjError(err?.message ?? "Failed to add project.");
     }
@@ -1308,17 +1320,17 @@ export default function CustomerDetailPage() {
                               <p className="py-2 text-center text-xs font-bold text-slate-400">No documents attached.</p>
                             ) : (
                               <div className="space-y-2">
-                                {p.estimationPdfUrl && (
+                                {(p.estimationPdfUrl || isEstimationStage) && (
                                   <div className="flex items-center justify-between gap-3 rounded-xl border border-slate-200/80 bg-slate-50/50 dark:border-slate-800 dark:bg-slate-900 px-3 py-2">
                                     <div className="flex min-w-0 items-center gap-2.5">
                                       <FileText className="h-4 w-4 shrink-0 text-blue-500" />
-                                      <span className="truncate text-xs font-bold text-slate-900 dark:text-white">Estimation PDF</span>
+                                      <span className="truncate text-xs font-bold text-slate-900 dark:text-white">Estimation Proposal PDF</span>
                                     </div>
                                     <button
                                       onClick={() => viewProjectPdf("estimation", p.id)}
                                       className="inline-flex items-center gap-1.5 rounded-lg border border-blue-200 bg-blue-50 px-3 py-1 text-xs font-bold text-blue-600 hover:bg-blue-100 dark:bg-blue-950/40 dark:border-blue-800 dark:text-blue-300"
                                     >
-                                      <ExternalLink className="h-3.5 w-3.5" />View PDF
+                                      <ExternalLink className="h-3.5 w-3.5" />{p.estimationPdfUrl ? "View PDF" : "Generate & View PDF"}
                                     </button>
                                   </div>
                                 )}

@@ -252,7 +252,7 @@ export default function EmployeeCustomerDetailPage() {
         payments: projForm.payments, timelines: projForm.timelines, schedules: projForm.schedules,
       }));
       setProjForm(emptyProjForm); setShowAddProj(false); await load();
-      showToast("Project added.");
+      showToast("Project created & Estimation PDF sent via WhatsApp!");
     } catch (err: any) {
       setProjError(err?.message ?? "Failed to add project.");
     }

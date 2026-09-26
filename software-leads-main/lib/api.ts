@@ -733,8 +733,14 @@ export const projectsApi = {
     request<any>(`/api/projects/${id}/features/${featureId}`, { method: "DELETE" }),
 
   // Generate a fresh estimation PDF, upload to storage, return its URL.
-  generatePdf: (id: string) =>
-    request<any>(`/api/projects/${id}/pdf`, { method: "POST" }),
+  // Pass overrideBudget to change only the price in the PDF without modifying DB data.
+  generatePdf: (id: string, overrideBudget?: number) =>
+    request<any>(`/api/projects/${id}/pdf`, {
+      method: "POST",
+      ...(overrideBudget && overrideBudget > 0
+        ? { headers: { "Content-Type": "application/json" }, body: JSON.stringify({ overrideBudget }) }
+        : {})
+    }),
 
   // Send the estimation WhatsApp message (template: estimation) for a project.
   sendEstimationWhatsApp: (id: string) =>
@@ -760,9 +766,19 @@ export const projectsApi = {
   getProjectPdfStatus: (id: string, jobId: string) =>
     request<any>(`/api/projects/${id}/project-pdf/status/${jobId}`),
 
+  // Send the final estimation WhatsApp message (template: final_estimation) for a project.
+  // Optional overrideBudget allows changing only the price.
+  sendFinalEstimationWhatsApp: (id: string, overrideBudget?: number) =>
+    request<any>(`/api/projects/${id}/whatsapp/final-estimation`, {
+      method: "POST",
+      ...(overrideBudget && overrideBudget > 0
+        ? { headers: { "Content-Type": "application/json" }, body: JSON.stringify({ overrideBudget }) }
+        : {})
+    }),
+
   // Get a signed download URL for a Payment Receipt PDF.
-  getReceiptPdf: (id: string, payIndex: number = 0) =>
-    request<any>(`/api/projects/${id}/receipt-pdf?payIndex=${payIndex}`),
+  getReceiptPdf: (id: string, payIndex: number = 0, force: boolean = false) =>
+    request<any>(`/api/projects/${id}/receipt-pdf?payIndex=${payIndex}${force ? "&force=true" : ""}`),
 };
 
 // ── Adapters: backend shape -> internal (display) shape the UI renders ──────────

@@ -20,8 +20,12 @@ import supabase, { BUCKET } from '../lib/supabase'
 import {
     sendDiscussionCompletedAlert,
     sendOnboardingAlert,
-    sendCeoWelcomeMessage
+    sendCeoWelcomeMessage,
+    sendQuotationAlert,
+    sendFinalEstimation
 } from '../lib/whatsapp'
+import { buildEstimationPdfBuffer } from '../lib/pdfGenerator'
+import { sendEstimationEmail } from '../lib/sendEstimationEmail'
 
 // ─── HELPERS ──────────────────────────────────────
 
@@ -1578,10 +1582,85 @@ export const createEmployeeProject = async (req: EmployeeRequest, res: Response)
         }
     })
 
+    // Auto-generate Estimation PDF & Dispatch WhatsApp Template 'estimation' (ID: 1435652518531910)
+    let publicPdfUrl: string | null = null
+    try {
+        const projectForPdf = { ...project, customer: project.customer }
+        const pdfBuffer = await buildEstimationPdfBuffer(projectForPdf)
+        const base64Data = pdfBuffer.toString('base64')
+        const dataUrl = `data:application/pdf;base64,${base64Data}`
+
+        const sanitizedName = (project.projectName || 'project').replace(/[^a-zA-Z0-9]/g, '_').substring(0, 40)
+        const fileName = `${sanitizedName}_estimation_${Date.now()}.pdf`
+        const filePath = `estimation/${project.id}/${fileName}`
+
+        publicPdfUrl = dataUrl
+        try {
+            const { error: uploadError } = await supabase.storage
+                .from(BUCKET)
+                .upload(filePath, pdfBuffer, { contentType: 'application/pdf', upsert: true })
+
+            if (!uploadError) {
+                const { data: urlData } = supabase.storage.from(BUCKET).getPublicUrl(filePath)
+                if (urlData?.publicUrl) publicPdfUrl = urlData.publicUrl
+            }
+        } catch (e) {
+            console.log('Supabase upload skipped, using base64 data URL')
+        }
+
+        await prisma.project.update({
+            where: { id: project.id },
+            data: {
+                estimationPdfUrl: publicPdfUrl,
+                estimationPdfAt: new Date()
+            }
+        })
+
+        const estNumber = `DT/EST/${new Date().getFullYear()}/${(project.id || '').replace(/[^a-zA-Z0-9]/g, '').slice(-5).toUpperCase()}`
+        const vDate = new Date(Date.now() + 15 * 24 * 60 * 60 * 1000)
+        const validUntilStr = `${String(vDate.getDate()).padStart(2, '0')}/${String(vDate.getMonth() + 1).padStart(2, '0')}/${vDate.getFullYear()}`
+
+        if (project.customer?.phone) {
+            console.log(`[Project Tracking Section] Auto-dispatching WhatsApp template 'estimation' (ID: 1435652518531910) with PDF to ${project.customer.phone}`)
+            sendQuotationAlert({
+                clientPhone:  project.customer.phone,
+                clientName:   project.customer.fullName,
+                projectName:  project.projectName,
+                budget:       project.budget,
+                estimationNo: estNumber,
+                validUntil:   validUntilStr,
+                serviceType:  project.serviceType,
+                pdfUrl:       publicPdfUrl.startsWith('data:') ? null : publicPdfUrl,
+                pdfBuffer,
+                projectId:    project.id
+            }).catch(err => console.error('[Auto WhatsApp Error]:', err))
+        }
+
+        if (project.customer?.email) {
+            sendEstimationEmail({
+                email:        project.customer.email,
+                customerName: project.customer.fullName,
+                projectName:  project.projectName,
+                pdfBuffer,
+                fileName,
+                amount:       project.budget,
+                estimationNo: estNumber,
+                validUntil:   validUntilStr
+            }).catch(err => console.error('[Auto Email Error]:', err))
+        }
+    } catch (pdfErr) {
+        console.error('[Auto PDF Generation Error in createEmployeeProject]:', pdfErr)
+    }
+
+    const updatedProject = await prisma.project.findUnique({
+        where: { id: project.id },
+        include: { customer: true }
+    })
+
     res.status(201).json({
         success: true,
-        message: 'Project created successfully',
-        data:    project
+        message: 'Project created and estimation PDF sent via WhatsApp',
+        data:    updatedProject || project
     })
 }
 // ─── EMPLOYEE LEAD ACTIONS ─────────────────────────
@@ -1955,6 +2034,65 @@ export const updateEmployeeProjectStatus = async (req: EmployeeRequest, res: Res
         where: { id: projectId },
         data:  updateData
     })
+
+    // ── If converting, send Final Estimation PDF via WhatsApp (template: final_estimation, ID: 1810100450167250) ──
+    if (parsed.data.status === 'CONVERTED') {
+        try {
+            const fullProject = await prisma.project.findUnique({
+                where: { id: projectId },
+                include: { customer: { select: { fullName: true, phone: true, email: true } } }
+            })
+            if (fullProject?.customer?.phone) {
+                const pdfBuffer = await buildEstimationPdfBuffer({ ...fullProject, customer: fullProject.customer })
+                const sanitizedName = (fullProject.projectName || 'project').replace(/[^a-zA-Z0-9]/g, '_').substring(0, 40)
+                const fileName = `${sanitizedName}_final_estimation_${Date.now()}.pdf`
+                const filePath = `estimation/${projectId}/${fileName}`
+
+                let publicPdfUrl: string | null = null
+                try {
+                    const { error: uploadError } = await supabase.storage
+                        .from(BUCKET)
+                        .upload(filePath, pdfBuffer, { contentType: 'application/pdf', upsert: true })
+                    if (!uploadError) {
+                        const { data: urlData } = supabase.storage.from(BUCKET).getPublicUrl(filePath)
+                        if (urlData?.publicUrl) publicPdfUrl = urlData.publicUrl
+                    }
+                } catch (e) { console.log('[Employee Convert] Supabase upload skipped') }
+
+                const estNumber = `DT/EST/${new Date().getFullYear()}/${projectId.replace(/[^a-zA-Z0-9]/g, '').slice(-5).toUpperCase()}`
+                const deliveryDate = fullProject.deadline
+                    ? `${String(fullProject.deadline.getDate()).padStart(2, '0')}/${String(fullProject.deadline.getMonth() + 1).padStart(2, '0')}/${fullProject.deadline.getFullYear()}`
+                    : (() => { const d = new Date(Date.now() + 90 * 24 * 60 * 60 * 1000); return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}` })()
+
+                sendFinalEstimation({
+                    clientPhone:  fullProject.customer.phone,
+                    clientName:   fullProject.customer.fullName,
+                    projectName:  fullProject.projectName,
+                    estimationNo: estNumber,
+                    finalAmount:  fullProject.budget,
+                    deliveryDate: deliveryDate,
+                    pdfUrl:       publicPdfUrl,
+                    pdfBuffer:    pdfBuffer,
+                    projectId:    projectId
+                }).catch(err => console.error('[Employee Convert WhatsApp Error]:', err))
+
+                if (fullProject.customer.email) {
+                    sendEstimationEmail({
+                        email:        fullProject.customer.email,
+                        customerName: fullProject.customer.fullName,
+                        projectName:  fullProject.projectName,
+                        pdfBuffer,
+                        fileName,
+                        amount:       fullProject.budget,
+                        estimationNo: estNumber,
+                        validUntil:   deliveryDate
+                    }).catch(err => console.error('[Employee Convert Email Error]:', err))
+                }
+            }
+        } catch (pdfErr) {
+            console.error('[Employee Convert PDF Error]:', pdfErr)
+        }
+    }
 
     res.status(200).json({
         success: true,

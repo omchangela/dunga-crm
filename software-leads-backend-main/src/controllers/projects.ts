@@ -19,6 +19,11 @@ import {
     sendDailyUpdate,
     sendFinalEstimation
 } from '../lib/whatsapp'
+import {
+    buildEstimationPdfBuffer,
+    buildProjectContractPdfBuffer,
+    buildPaymentReceiptPdfBuffer
+} from '../lib/pdfGenerator'
 
 
 // ─── HELPERS ──────────────────────────────────────
@@ -208,10 +213,84 @@ export const createProject = async (req: Request, res: Response) => {
         }
     })
 
+    // ── Auto-generate Estimation PDF & Dispatch WhatsApp Template 'estimation' (ID: 1435652518531910) ──
+    let publicPdfUrl: string | null = null
+    try {
+        const projectForPdf = { ...project, customer }
+        const pdfBuffer = await buildEstimationPdfBuffer(projectForPdf)
+        const base64Data = pdfBuffer.toString('base64')
+        const dataUrl = `data:application/pdf;base64,${base64Data}`
+
+        const sanitizedName = (project.projectName || 'project').replace(/[^a-zA-Z0-9]/g, '_').substring(0, 40)
+        const fileName = `${sanitizedName}_estimation_${Date.now()}.pdf`
+        const filePath = `estimation/${project.id}/${fileName}`
+
+        publicPdfUrl = dataUrl
+        try {
+            const { error: uploadError } = await supabase.storage
+                .from(BUCKET)
+                .upload(filePath, pdfBuffer, { contentType: 'application/pdf', upsert: true })
+
+            if (!uploadError) {
+                const { data: urlData } = supabase.storage.from(BUCKET).getPublicUrl(filePath)
+                if (urlData?.publicUrl) publicPdfUrl = urlData.publicUrl
+            }
+        } catch (e) {
+            console.log('Supabase upload skipped, using base64 data URL')
+        }
+
+        await prisma.project.update({
+            where: { id: project.id },
+            data: {
+                estimationPdfUrl: publicPdfUrl,
+                estimationPdfAt: new Date()
+            }
+        })
+
+        const estNumber = `DT/EST/${new Date().getFullYear()}/${(project.id || '').replace(/[^a-zA-Z0-9]/g, '').slice(-5).toUpperCase()}`
+        const vDate = new Date(Date.now() + 15 * 24 * 60 * 60 * 1000)
+        const validUntilStr = `${String(vDate.getDate()).padStart(2, '0')}/${String(vDate.getMonth() + 1).padStart(2, '0')}/${vDate.getFullYear()}`
+
+        if (customer.phone) {
+            console.log(`[Project Tracking Section] Auto-dispatching WhatsApp template 'estimation' (ID: 1435652518531910) with PDF to ${customer.phone}`)
+            sendQuotationAlert({
+                clientPhone:  customer.phone,
+                clientName:   customer.fullName,
+                projectName:  project.projectName,
+                budget:       project.budget,
+                estimationNo: estNumber,
+                validUntil:   validUntilStr,
+                serviceType:  project.serviceType,
+                pdfUrl:       publicPdfUrl.startsWith('data:') ? null : publicPdfUrl,
+                pdfBuffer,
+                projectId:    project.id
+            }).catch(err => console.error('[Auto WhatsApp Error]:', err))
+        }
+
+        if (customer.email) {
+            sendEstimationEmail({
+                email:        customer.email,
+                customerName: customer.fullName,
+                projectName:  project.projectName,
+                pdfBuffer,
+                fileName,
+                amount:       project.budget,
+                estimationNo: estNumber,
+                validUntil:   validUntilStr
+            }).catch(err => console.error('[Auto Email Error]:', err))
+        }
+    } catch (pdfErr) {
+        console.error('[Auto PDF Generation Error in createProject]:', pdfErr)
+    }
+
+    const updatedProject = await prisma.project.findUnique({
+        where: { id: project.id }
+    })
+
     res.status(201).json({
         success: true,
-        message: 'Project created successfully',
-        data:    project
+        message: 'Project created and estimation PDF sent via WhatsApp',
+        data:    updatedProject || project
     })
 }
 
@@ -391,7 +470,7 @@ export const updateProject = async (req: Request, res: Response) => {
         try {
             const project = await prisma.project.findUnique({
                 where: { id },
-                include: { customer: { select: { fullName: true, phone: true } } }
+                include: { customer: { select: { fullName: true, phone: true, email: true } } }
             })
 
             if (project?.customer?.phone) {
@@ -403,7 +482,66 @@ export const updateProject = async (req: Request, res: Response) => {
                         projectSummary: summary,
                         projectId:      id
                     })
-                } else if (data.status === 'ACTIVE' || data.status === 'CONVERTED') {
+                } else if (data.status === 'CONVERTED') {
+                    // ── Generate Final Estimation PDF with updated payments & send via WhatsApp final_estimation template ──
+                    try {
+                        const projectForPdf = { ...project, customer: project.customer }
+                        const pdfBuffer = await buildEstimationPdfBuffer(projectForPdf)
+                        const sanitizedName = (project.projectName || 'project').replace(/[^a-zA-Z0-9]/g, '_').substring(0, 40)
+                        const fileName = `${sanitizedName}_final_estimation_${Date.now()}.pdf`
+                        const filePath = `estimation/${project.id}/${fileName}`
+
+                        let publicPdfUrl: string | null = null
+                        try {
+                            const { error: uploadError } = await supabase.storage
+                                .from(BUCKET)
+                                .upload(filePath, pdfBuffer, { contentType: 'application/pdf', upsert: true })
+                            if (!uploadError) {
+                                const { data: urlData } = supabase.storage.from(BUCKET).getPublicUrl(filePath)
+                                if (urlData?.publicUrl) publicPdfUrl = urlData.publicUrl
+                            }
+                        } catch (e) {
+                            console.log('[Convert] Supabase upload skipped')
+                        }
+
+                        const estNumber = `DT/EST/${new Date().getFullYear()}/${(project.id || '').replace(/[^a-zA-Z0-9]/g, '').slice(-5).toUpperCase()}`
+                        const deliveryDate = project.deadline
+                            ? `${String(project.deadline.getDate()).padStart(2, '0')}/${String(project.deadline.getMonth() + 1).padStart(2, '0')}/${project.deadline.getFullYear()}`
+                            : (() => {
+                                const d = new Date(Date.now() + 90 * 24 * 60 * 60 * 1000)
+                                return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`
+                            })()
+
+                        console.log(`[Convert Project] Sending final_estimation WhatsApp (ID: 1810100450167250) to ${project.customer.phone}`)
+                        sendFinalEstimation({
+                            clientPhone:  project.customer.phone,
+                            clientName:   project.customer.fullName,
+                            projectName:  project.projectName,
+                            estimationNo: estNumber,
+                            finalAmount:  project.budget,
+                            deliveryDate: deliveryDate,
+                            pdfUrl:       publicPdfUrl,
+                            pdfBuffer:    pdfBuffer,
+                            projectId:    project.id
+                        }).catch(err => console.error('[Convert WhatsApp Error]:', err))
+
+                        // Also send email
+                        if (project.customer.email) {
+                            sendEstimationEmail({
+                                email:        project.customer.email,
+                                customerName: project.customer.fullName,
+                                projectName:  project.projectName,
+                                pdfBuffer,
+                                fileName,
+                                amount:       project.budget,
+                                estimationNo: estNumber,
+                                validUntil:   deliveryDate
+                            }).catch(err => console.error('[Convert Email Error]:', err))
+                        }
+                    } catch (pdfErr) {
+                        console.error('[Convert PDF Generation Error]:', pdfErr)
+                    }
+                } else if (data.status === 'ACTIVE') {
                     await sendWorkStartAlert({
                         clientPhone: project.customer.phone,
                         clientName:  project.customer.fullName,
@@ -641,11 +779,7 @@ export const removeFeature = async (req: Request, res: Response) => {
     })
 }
 
-import {
-  buildEstimationPdfBuffer,
-  buildProjectContractPdfBuffer,
-  buildPaymentReceiptPdfBuffer
-} from '../lib/pdfGenerator'
+// PDF Builders imported at top of file
 
 // GENERATE estimation PDF (Instant / Synchronous)
 export const generatePdf = async (req: Request, res: Response) => {
@@ -668,7 +802,14 @@ export const generatePdf = async (req: Request, res: Response) => {
     }
 
     try {
-        const pdfBuffer = await buildEstimationPdfBuffer(project)
+        // Allow price-only override: if caller passes overrideBudget, inject it into the project
+        // data used for PDF generation only — nothing is saved to the DB.
+        const overrideBudget = req.body?.overrideBudget ? Number(req.body.overrideBudget) : null;
+        const projectForPdf = overrideBudget && overrideBudget > 0
+            ? { ...project, budget: overrideBudget, overrideBudget }
+            : project;
+
+        const pdfBuffer = await buildEstimationPdfBuffer(projectForPdf)
         const base64Data = pdfBuffer.toString('base64')
         const dataUrl = `data:application/pdf;base64,${base64Data}`
 
@@ -1255,16 +1396,22 @@ export const sendFinalEstimationWhatsApp = async (req: Request, res: Response) =
     }
 
     try {
+        const overrideBudget = req.body?.overrideBudget ? Number(req.body.overrideBudget) : null
+        const projectForPdf = overrideBudget && overrideBudget > 0
+            ? { ...project, budget: overrideBudget, overrideBudget }
+            : project
+        const finalAmount = overrideBudget && overrideBudget > 0 ? overrideBudget : (project.budget || 50000)
+
         const estNo = project.customer?.applicationNumber || `EST-${Date.now().toString().slice(-6)}`
         const deliveryDate = project.deadline ? new Date(project.deadline).toLocaleDateString('en-IN') : '45 Working Days'
-        const pdfBuffer = await buildEstimationPdfBuffer(project)
+        const pdfBuffer = await buildEstimationPdfBuffer(projectForPdf)
 
         const result = await sendFinalEstimation({
             clientPhone:  project.customer.phone,
             clientName:   project.customer.fullName,
             projectName:  project.projectName,
             estimationNo: estNo,
-            finalAmount:  project.budget || 50000,
+            finalAmount,
             deliveryDate,
             pdfBuffer,
             projectId:    project.id
@@ -1368,7 +1515,8 @@ export const getPaymentReceiptPdf = async (req: Request, res: Response) => {
     const remainingBalance = Math.max(0, totalBudget - totalPaid)
 
     // If item has amount > 0 and totalPaid is less than the cumulative required, it's not paid yet!
-    if (itemAmount > 0 && totalPaid < cumulativeNeeded) {
+    const force = req.query.force === 'true' || req.query.force === '1'
+    if (itemAmount > 0 && totalPaid < cumulativeNeeded && !force) {
         res.status(400).json({
             success: false,
             message: `Receipt is only available after payment is completed. (Received: ₹${totalPaid.toLocaleString('en-IN')} / Needed: ₹${cumulativeNeeded.toLocaleString('en-IN')})`

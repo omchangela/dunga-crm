@@ -277,7 +277,7 @@ export default function ProjectDetailPage() {
   async function handleDownloadReceiptPdf(payIndex: number) {
     if (!project) return;
     try {
-      const res = await projectsApi.getReceiptPdf(project.id, payIndex);
+      const res = await projectsApi.getReceiptPdf(project.id, payIndex, true);
       const url = res?.data?.downloadUrl ?? res?.data?.signedUrl;
       if (url) {
         setViewer({ url, title: `${project.projectName || "Project"} — Payment Receipt #${payIndex + 1}` });

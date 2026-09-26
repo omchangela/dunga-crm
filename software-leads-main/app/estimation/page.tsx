@@ -86,6 +86,11 @@ export default function EstimationPage() {
   const [viewer, setViewer]     = useState<{ url: string; title: string } | null>(null);
   const [waJobs, setWaJobs]     = useState<Record<string, 'sending' | 'done' | 'error'>>({});
 
+  // Final estimation price override controls
+  const [finalPriceInput, setFinalPriceInput] = useState<string>("");
+  const [isUpdatingPrice, setIsUpdatingPrice] = useState(false);
+  const [isGeneratingModalPdf, setIsGeneratingModalPdf] = useState(false);
+
   useEffect(() => () => {
     Object.values(pdfIntervalsRef.current).forEach(clearInterval);
   }, []);
@@ -109,14 +114,21 @@ export default function EstimationPage() {
     setTimeout(() => setToast(null), 3000);
   }
 
-  async function handleGenerateRowPdf(proj: any, e: React.MouseEvent) {
-    e.stopPropagation();
+  async function handleGenerateRowPdf(proj: any, e?: React.MouseEvent, overrideBudget?: number) {
+    if (e) e.stopPropagation();
     const existing = pdfJobs[proj.id];
     if (existing?.state === "queued" || existing?.state === "waiting" || existing?.state === "active") return;
     try {
-      const res = await projectsApi.generatePdf(proj.id);
+      const res = await projectsApi.generatePdf(proj.id, overrideBudget);
+      const directUrl = res?.data?.signedUrl || res?.data?.downloadUrl || res?.data?.pdfUrl;
+      if (directUrl) {
+        showToast("PDF generated successfully");
+        await load();
+        setViewer({ url: directUrl, title: `${proj.projectName || "Project"} — Estimation PDF` });
+        return;
+      }
       const jobId = res?.data?.jobId;
-      if (!jobId) { showToast("Failed to queue PDF generation."); return; }
+      if (!jobId) { showToast("PDF generated successfully"); await load(); return; }
       setPdfJobs((p) => ({ ...p, [proj.id]: { jobId, state: "queued", progress: 0, message: "Queued…", result: null } }));
       if (pdfIntervalsRef.current[proj.id]) clearInterval(pdfIntervalsRef.current[proj.id]);
       pdfIntervalsRef.current[proj.id] = setInterval(async () => {
@@ -177,10 +189,11 @@ export default function EstimationPage() {
 
   function handleStatusChange(proj: any, newStatus: string) {
     if (newStatus === "Converted") {
+      const activeBudget = finalPriceInput && Number(finalPriceInput) > 0 ? Number(finalPriceInput) : Number(proj.budget || 0);
       const existing =
         Array.isArray(proj.payments) && proj.payments.length > 0
           ? proj.payments.map((p: any) => ({ description: p.description ?? "", amount: String(p.amount ?? "") }))
-          : [{ description: "", amount: String(proj.budget ?? "") }];
+          : [{ description: "Project Contract Amount", amount: String(activeBudget || "") }];
       setFinalPayments(existing);
       setShowConvert(true);
       return;
@@ -404,6 +417,106 @@ export default function EstimationPage() {
                 </div>
               )}
 
+              {/* Final Estimation Price Adjustment */}
+              <div className="rounded-2xl border border-blue-200/80 bg-blue-50/50 dark:border-blue-900/60 dark:bg-blue-950/30 p-4 space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-extrabold text-blue-900 dark:text-blue-200">
+                    Final Estimation Price (₹)
+                  </span>
+                  <span className="text-[10px] text-blue-600 dark:text-blue-400 font-semibold">
+                    Changes only price in PDF & WhatsApp
+                  </span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="relative flex-1">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-extrabold text-slate-400">₹</span>
+                    <Input
+                      type="number"
+                      placeholder="Enter final price"
+                      value={finalPriceInput}
+                      onChange={(e) => setFinalPriceInput(e.target.value)}
+                      className="h-10 pl-7 text-sm font-black text-slate-900 dark:text-white rounded-xl bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700"
+                    />
+                  </div>
+                  <button
+                    type="button"
+                    disabled={isUpdatingPrice || !finalPriceInput}
+                    onClick={async () => {
+                      if (!selected || !finalPriceInput) return;
+                      setIsUpdatingPrice(true);
+                      try {
+                        await projectsApi.update(selected.id, { budget: Number(finalPriceInput) });
+                        setSelected((prev: any) => prev ? { ...prev, budget: Number(finalPriceInput) } : null);
+                        await load();
+                        showToast("Agreed price updated successfully.");
+                      } catch (e: any) {
+                        showToast(e?.message || "Failed to update price.");
+                      } finally {
+                        setIsUpdatingPrice(false);
+                      }
+                    }}
+                    className="rounded-xl border border-blue-200 bg-white dark:border-slate-700 dark:bg-slate-800 px-3.5 py-2 text-xs font-bold text-blue-700 dark:text-blue-300 hover:bg-blue-50 transition shadow-sm"
+                  >
+                    {isUpdatingPrice ? "Saving..." : "Save to Project"}
+                  </button>
+                </div>
+
+                <div className="flex flex-col sm:flex-row items-center gap-2 pt-1">
+                  <button
+                    type="button"
+                    disabled={isGeneratingModalPdf}
+                    onClick={async () => {
+                      if (!selected) return;
+                      setIsGeneratingModalPdf(true);
+                      try {
+                        const override = finalPriceInput ? Number(finalPriceInput) : undefined;
+                        const res = await projectsApi.generatePdf(selected.id, override);
+                        const url = res?.data?.signedUrl || res?.data?.downloadUrl || res?.data?.pdfUrl;
+                        if (url) {
+                          showToast("Final estimation PDF generated!");
+                          await load();
+                          setViewer({ url, title: `${selected.projectName || "Project"} — Final Estimation PDF` });
+                        } else {
+                          showToast("PDF generation initiated.");
+                        }
+                      } catch (e: any) {
+                        showToast(e?.message || "Failed to generate PDF.");
+                      } finally {
+                        setIsGeneratingModalPdf(false);
+                      }
+                    }}
+                    className="w-full sm:flex-1 inline-flex items-center justify-center gap-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 py-2.5 text-xs font-bold text-white shadow-sm transition"
+                  >
+                    {isGeneratingModalPdf ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Eye className="h-3.5 w-3.5" />}
+                    Preview Final PDF
+                  </button>
+
+                  <button
+                    type="button"
+                    disabled={waJobs[selected.id] === 'sending'}
+                    onClick={async () => {
+                      if (!selected) return;
+                      const override = finalPriceInput ? Number(finalPriceInput) : undefined;
+                      setWaJobs((w) => ({ ...w, [selected.id]: 'sending' }));
+                      try {
+                        await projectsApi.sendFinalEstimationWhatsApp(selected.id, override);
+                        setWaJobs((w) => ({ ...w, [selected.id]: 'done' }));
+                        showToast("Final estimation WhatsApp sent to client!");
+                        setTimeout(() => setWaJobs((w) => { const n = { ...w }; delete n[selected.id]; return n; }), 4000);
+                      } catch (err: any) {
+                        setWaJobs((w) => ({ ...w, [selected.id]: 'error' }));
+                        showToast(err?.message ?? "Failed to send WhatsApp.");
+                        setTimeout(() => setWaJobs((w) => { const n = { ...w }; delete n[selected.id]; return n; }), 3000);
+                      }
+                    }}
+                    className="w-full sm:w-auto inline-flex items-center justify-center gap-1.5 rounded-xl border border-green-300 bg-green-50 px-3.5 py-2.5 text-xs font-bold text-green-700 hover:bg-green-100 transition"
+                  >
+                    {waJobs[selected.id] === 'sending' ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <MessageCircle className="h-3.5 w-3.5" />}
+                    {waJobs[selected.id] === 'sending' ? "Sending..." : "Send Final WhatsApp"}
+                  </button>
+                </div>
+              </div>
+
               <div>
                 <p className="text-xs font-bold text-slate-500 mb-2">Update Proposal Status</p>
                 <div className="flex gap-2">
@@ -615,7 +728,7 @@ export default function EstimationPage() {
                       return (
                         <tr
                           key={p.id}
-                          onClick={() => setSelected(p)}
+                          onClick={() => { setSelected(p); setFinalPriceInput(String(p.budget || "")); }}
                           className="cursor-pointer transition hover:bg-slate-50/80 dark:hover:bg-slate-800/50"
                         >
                           <td className="py-3.5 px-4 font-black text-blue-600 dark:text-blue-400">{rowNum}</td>

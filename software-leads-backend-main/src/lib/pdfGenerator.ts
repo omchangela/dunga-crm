@@ -207,15 +207,18 @@ function renderEstimationQuotationPdf(doc: any, project: any) {
   const fullDeliveryText = `${daysText}  (Target Date: ${targetDateStr})`;
 
   // Calculate Total Cost
+  const overrideBudget = project.overrideBudget && Number(project.overrideBudget) > 0 ? Number(project.overrideBudget) : null;
   let baseItemsTotal = 0;
-  if (Array.isArray(project.costHistory) && project.costHistory.length > 0) {
+  if (overrideBudget) {
+    baseItemsTotal = overrideBudget;
+  } else if (Array.isArray(project.costHistory) && project.costHistory.length > 0) {
     baseItemsTotal = project.costHistory.reduce((sum: number, item: any) => sum + Number(item.amount || 0), 0);
   } else if (Array.isArray(project.featureItems) && project.featureItems.length > 0) {
     baseItemsTotal = project.featureItems.reduce((sum: number, item: any) => sum + Number(item.price || item.amount || 0), 0);
   } else {
     baseItemsTotal = Number(project.budget || project.projectCost || 0);
   }
-  const displayTotal = baseItemsTotal > 0 ? baseItemsTotal : Number(project.budget || project.projectCost || 50000);
+  const displayTotal = overrideBudget || (baseItemsTotal > 0 ? baseItemsTotal : Number(project.budget || project.projectCost || 50000));
 
   // ── 1. CLIENT INFORMATION CARD ─────────────────────────────────────────────
   const customerName = project.customer?.fullName || project.clientName || 'Valued Client';
@@ -332,9 +335,17 @@ function renderEstimationQuotationPdf(doc: any, project: any) {
     mainServiceLabel = projName ? `${formatted} — ${projName}` : `${formatted} Services`;
   }
 
-  const totalBudget = Number(project.budget || project.projectCost || displayTotal);
+  const totalBudget = overrideBudget || Number(project.budget || project.projectCost || displayTotal);
 
-  if (Array.isArray(project.featureItems) && project.featureItems.length > 0) {
+  if (overrideBudget) {
+    tableItems.push({
+      label: mainServiceLabel,
+      qty: '1 Package',
+      rateStr: overrideBudget.toLocaleString('en-IN'),
+      amountStr: overrideBudget.toLocaleString('en-IN'),
+      isFree: false
+    });
+  } else if (Array.isArray(project.featureItems) && project.featureItems.length > 0) {
     tableItems = project.featureItems.map((f: any, idx: number) => {
       const priceNum = Number(f.price || f.amount || 0);
       return {
@@ -420,7 +431,32 @@ function renderEstimationQuotationPdf(doc: any, project: any) {
 
   let paymentChunks: { title: string; amount: number; stage: string }[] = [];
 
-  if (Array.isArray(project.payments) && project.payments.length > 0) {
+  if (overrideBudget) {
+    if (Array.isArray(project.payments) && project.payments.length > 0) {
+      const origSum = project.payments.reduce((s: number, p: any) => s + Number(p.amount || 0), 0);
+      paymentChunks = project.payments.map((p: any, i: number) => {
+        const ratio = origSum > 0 ? Number(p.amount || 0) / origSum : 1 / project.payments.length;
+        return {
+          title: p.description || p.label || `Phase ${i + 1} Milestone Payment`,
+          amount: Math.round(overrideBudget * ratio),
+          stage: p.date ? `Scheduled / ${p.date}` : `Milestone Chunk ${i + 1}`,
+        };
+      });
+      const cSum = paymentChunks.reduce((s, c) => s + c.amount, 0);
+      if (paymentChunks.length > 0 && cSum !== overrideBudget) {
+        paymentChunks[paymentChunks.length - 1].amount += (overrideBudget - cSum);
+      }
+    } else {
+      const chunk1 = Math.round(overrideBudget * 0.5);
+      const chunk2 = Math.round(overrideBudget * 0.25);
+      const chunk3 = overrideBudget - chunk1 - chunk2;
+      paymentChunks = [
+        { title: 'Chunk 1: 50% Advance Payment (Booking & System Design)', amount: chunk1, stage: 'Due on Booking' },
+        { title: 'Chunk 2: 25% Mid Milestone Payment (UI/UX & Core API Delivery)', amount: chunk2, stage: 'On Phase 1 Completion' },
+        { title: 'Chunk 3: 25% Final Settlement (QA, Testing & Launch)', amount: chunk3, stage: 'Before Final Launch' },
+      ];
+    }
+  } else if (Array.isArray(project.payments) && project.payments.length > 0) {
     paymentChunks = project.payments.map((p: any, i: number) => ({
       title: p.description || p.label || `Phase ${i + 1} Milestone Payment`,
       amount: Number(p.amount || 0),

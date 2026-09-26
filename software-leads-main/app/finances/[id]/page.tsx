@@ -493,12 +493,13 @@ async function loadFinanceLedger() {
                           <button
                             onClick={() => handleGenerateReceipt(pay.id, pay.amount)}
                             disabled={receiptLoading === pay.id}
-                            title="Download Receipt"
-                            className="rounded-lg p-1.5 text-slate-400 hover:bg-emerald-50 hover:text-emerald-600 disabled:opacity-50"
+                            title="Download Official Payment Receipt PDF"
+                            className="inline-flex items-center gap-1 rounded-lg border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-xs font-bold text-emerald-700 hover:bg-emerald-100 disabled:opacity-50 transition shadow-sm mr-1"
                           >
                             {receiptLoading === pay.id
-                              ? <span className="h-3.5 w-3.5 block animate-spin rounded-full border-2 border-current border-t-transparent" />
-                              : <Receipt className="h-3.5 w-3.5" />}
+                              ? <span className="h-3 w-3 block animate-spin rounded-full border-2 border-emerald-600 border-t-transparent" />
+                              : <Receipt className="h-3.5 w-3.5 text-emerald-600" />}
+                            <span>Receipt PDF</span>
                           </button>
                           <button onClick={() => startEdit(pay)} title="Edit" className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700">
                             <Pencil className="h-3.5 w-3.5" />
