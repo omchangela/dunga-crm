@@ -470,10 +470,15 @@ function renderEstimationQuotationPdf(doc: any, project: any) {
 
   // ── 6. PROJECT TIMELINE & SUPPORT COVERAGE CARD ────────────────────────────
   ensureSpace(50);
-  const supportPeriod = project.supportPeriod || '1 Year Free Maintenance & 24/7 Technical Support Included';
+  // Only show supportPeriod if explicitly provided by the user — no hardcoded default
+  const supportPeriod: string | null = project.supportPeriod && String(project.supportPeriod).trim()
+    ? String(project.supportPeriod).trim()
+    : null;
 
-  const suppH = doc.heightOfString(`Support & Maintenance  :  ${supportPeriod}`, { width: 325 });
-  const timelineCardH = Math.max(54, 36 + suppH + 10);
+  const suppH = supportPeriod
+    ? doc.heightOfString(`Support & Maintenance  :  ${supportPeriod}`, { width: 325 })
+    : 0;
+  const timelineCardH = supportPeriod ? Math.max(54, 36 + suppH + 10) : 40;
 
   doc.rect(45, y, 450, timelineCardH).fillAndStroke('#fff7ed', '#fed7aa');
   doc.fillColor(accentOrange).fontSize(9).font('Helvetica-Bold').text('PROJECT TIMELINE & SUPPORT COVERAGE', 55, y + 8);
@@ -482,9 +487,11 @@ function renderEstimationQuotationPdf(doc: any, project: any) {
   doc.fillColor(primaryTeal).fontSize(8.5).font('Helvetica-Bold').text('Estimated Delivery Time', 55, y + 22, { width: 110 });
   doc.fillColor(darkText).fontSize(8.5).font('Helvetica-Bold').text(`:  ${fullDeliveryText}`, 165, y + 22, { width: 325 });
 
-  // Line 2: Support & Maintenance
-  doc.fillColor(primaryTeal).fontSize(8.5).font('Helvetica-Bold').text('Support & Maintenance', 55, y + 36, { width: 110 });
-  doc.fillColor(darkText).fontSize(8.5).font('Helvetica').text(`:  ${supportPeriod}`, 165, y + 36, { width: 325 });
+  // Line 2: Support & Maintenance — only if explicitly provided
+  if (supportPeriod) {
+    doc.fillColor(primaryTeal).fontSize(8.5).font('Helvetica-Bold').text('Support & Maintenance', 55, y + 36, { width: 110 });
+    doc.fillColor(darkText).fontSize(8.5).font('Helvetica').text(`:  ${supportPeriod}`, 165, y + 36, { width: 325 });
+  }
 
   y += timelineCardH + 14;
 
