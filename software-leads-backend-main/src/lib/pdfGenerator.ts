@@ -71,6 +71,77 @@ export async function buildEstimationPdfBuffer(project: any): Promise<Buffer> {
   });
 }
 
+interface ScopeCategory {
+  title: string;
+  items: string[];
+}
+
+function extractScopeCategories(project: any): ScopeCategory[] {
+  const categories: ScopeCategory[] = [];
+  const customMap = new Map<string, string[]>();
+
+  // If project has direct overviewSections array
+  if (Array.isArray(project.overviewSections) && project.overviewSections.length > 0) {
+    project.overviewSections.forEach((sec: any) => {
+      if (sec && sec.title && Array.isArray(sec.items) && sec.items.length > 0) {
+        const cleanItems = sec.items.map((s: any) => String(s || '').trim()).filter(Boolean);
+        if (cleanItems.length > 0) {
+          categories.push({
+            title: sec.title.trim(),
+            items: cleanItems
+          });
+        }
+      }
+    });
+    if (categories.length > 0) return categories;
+  }
+
+  const parseList = (rawList: any[], defaultTitle: string) => {
+    if (!Array.isArray(rawList) || rawList.length === 0) return;
+    const defaultItems: string[] = [];
+
+    rawList.forEach((it: any) => {
+      const str = String(it || '').trim();
+      if (!str) return;
+
+      // Check for [Custom Title] prefix (used when non-standard overview sections are added in UI)
+      const match = str.match(/^\[(.*?)\]\s*(.*)$/);
+      if (match && match[1]) {
+        const customTitle = match[1].trim();
+        const itemBody = match[2].trim() || str;
+        if (!customMap.has(customTitle)) {
+          customMap.set(customTitle, []);
+        }
+        customMap.get(customTitle)!.push(itemBody);
+      } else {
+        defaultItems.push(str);
+      }
+    });
+
+    if (defaultItems.length > 0) {
+      categories.push({
+        title: defaultTitle,
+        items: defaultItems
+      });
+    }
+  };
+
+  const rawWeb = project.webOverview || project.overview?.web || project.overviewWeb || [];
+  const rawApp = project.appOverview || project.overview?.app || project.overviewApp || [];
+  const rawAdmin = project.adminOverview || project.overview?.admin || project.overviewAdmin || [];
+
+  parseList(rawWeb, 'Website / Web Platform Overview');
+  parseList(rawApp, 'Mobile Application Overview (iOS & Android)');
+  parseList(rawAdmin, 'Admin Panel & Backend System Overview');
+
+  // Append any custom mapped categories
+  for (const [title, items] of customMap.entries()) {
+    categories.push({ title, items });
+  }
+
+  return categories;
+}
+
 // Render modern Card-Based Estimation / Quotation PDF matching official demo design
 function renderEstimationQuotationPdf(doc: any, project: any) {
   const primaryTeal = '#007a87';
@@ -178,25 +249,45 @@ function renderEstimationQuotationPdf(doc: any, project: any) {
 
   y += cardHeight + 10;
 
-  // ── 2. PROJECT OVERVIEW & DESCRIPTION CARD ────────────────────────────────
-  if (project.description && project.description.trim().length > 0) {
-    ensureSpace(45);
-    const descText = project.description.trim();
-    const descContentH = doc.heightOfString(descText, { width: 435 });
-    const descCardH = Math.max(38, descContentH + 22);
+  // ── 2. PROJECT OVERVIEW & SCOPE OF WORK (TITLES & POINTS) ─────────────────
+  const scopeCategories = extractScopeCategories(project);
+  const hasDesc = Boolean(project.description && project.description.trim().length > 0);
+  const hasScope = scopeCategories.length > 0;
 
-    doc.rect(45, y, 450, descCardH).fillAndStroke('#f0fdfa', '#cbd5e1');
-    doc.fillColor(primaryTeal).fontSize(8.5).font('Helvetica-Bold').text('PROJECT OVERVIEW & DESCRIPTION', 55, y + 6);
-    doc.fillColor(darkText).fontSize(8).font('Helvetica').text(descText, 55, y + 18, { width: 435 });
+  if (hasDesc || hasScope) {
+    ensureSpace(32);
+    doc.rect(45, y, 450, 18).fill('#f0fdfa');
+    doc.rect(45, y, 4, 18).fill(primaryTeal);
+    doc.fillColor(primaryTeal).fontSize(9).font('Helvetica-Bold').text('PROJECT OVERVIEW & SCOPE OF WORK', 56, y + 4.5);
+    y += 24;
 
-    y += descCardH + 10;
-  } else {
-    // Intro note fallback
-    ensureSpace(30);
-    const introStr = `Thank you for considering Dunga Technologies for your ${project.serviceType || 'project'} requirements. Please find below the estimation for the proposed services.`;
-    const introH = doc.heightOfString(introStr, { width: 450 });
-    doc.fillColor(darkText).fontSize(8.5).font('Helvetica').text(introStr, 45, y, { width: 450, align: 'left' });
-    y += introH + 12;
+    if (hasDesc) {
+      const descText = project.description.trim();
+      const descH = doc.heightOfString(descText, { width: 435, lineGap: 1.5 });
+      ensureSpace(descH + 8);
+      doc.fillColor(darkText).fontSize(8).font('Helvetica').text(descText, 50, y, { width: 435, lineGap: 1.5 });
+      y += descH + 10;
+    }
+
+    if (hasScope) {
+      scopeCategories.forEach((cat) => {
+        ensureSpace(26);
+        doc.fillColor(accentOrange).fontSize(8.5).font('Helvetica-Bold').text(cat.title, 50, y);
+        y += 12;
+
+        cat.items.forEach((item) => {
+          const itemH = doc.heightOfString(item, { width: 418, lineGap: 1.5 });
+          ensureSpace(itemH + 3.5);
+          doc.fillColor(primaryTeal).fontSize(8).font('Helvetica-Bold').text('•', 55, y);
+          doc.fillColor(darkText).fontSize(7.8).font('Helvetica').text(item, 65, y, { width: 418, lineGap: 1.5 });
+          y += itemH + 2.5;
+        });
+
+        y += 5;
+      });
+    }
+
+    y += 4;
   }
 
   // ── 3. SERVICES & COMMERCIAL COST TABLE ──────────────────────────────────
@@ -213,7 +304,7 @@ function renderEstimationQuotationPdf(doc: any, project: any) {
   doc.text('AMOUNT (Rs.)', colX[4], y + 4, { width: colW[4], align: 'right' });
   y += 18;
 
-  // Prepare table items - show main developer / service pricing only
+  // Prepare table items - only real items (featureItems or package), NO hardcoded free addons
   let tableItems: { label: string; qty: string; rateStr: string; amountStr: string; isFree?: boolean }[] = [];
 
   const rawService = String(project.serviceType || project.projectType || '').toUpperCase();
@@ -242,36 +333,38 @@ function renderEstimationQuotationPdf(doc: any, project: any) {
   }
 
   const totalBudget = Number(project.budget || project.projectCost || displayTotal);
-  tableItems.push({
-    label: mainServiceLabel,
-    qty: '1 Package',
-    rateStr: totalBudget.toLocaleString('en-IN'),
-    amountStr: totalBudget.toLocaleString('en-IN'),
-    isFree: false
-  });
 
-  // Always include Zero Value / Free Addons requested by user
-  tableItems.push({
-    label: 'Domain Name Registration & SSL Certificate (1st Year)',
-    qty: '1 Year',
-    rateStr: '0 (FREE)',
-    amountStr: 'INCLUDED',
-    isFree: true
-  });
-  tableItems.push({
-    label: 'Cloud Server Setup & Hosting Infrastructure',
-    qty: '1 Setup',
-    rateStr: '0 (FREE)',
-    amountStr: 'INCLUDED',
-    isFree: true
-  });
-  tableItems.push({
-    label: 'Post-Launch Technical Support & Maintenance (24/7)',
-    qty: '1 Year',
-    rateStr: '0 (FREE)',
-    amountStr: 'INCLUDED',
-    isFree: true
-  });
+  if (Array.isArray(project.featureItems) && project.featureItems.length > 0) {
+    tableItems = project.featureItems.map((f: any, idx: number) => {
+      const priceNum = Number(f.price || f.amount || 0);
+      return {
+        label: f.name || f.description || `Module ${idx + 1}`,
+        qty: f.qty || '1 Unit',
+        rateStr: priceNum.toLocaleString('en-IN'),
+        amountStr: priceNum > 0 ? priceNum.toLocaleString('en-IN') : '0',
+        isFree: priceNum === 0
+      };
+    });
+  } else if (Array.isArray(project.costHistory) && project.costHistory.length > 0) {
+    tableItems = project.costHistory.map((item: any, idx: number) => {
+      const priceNum = Number(item.amount || 0);
+      return {
+        label: item.note || item.description || `Scope Item ${idx + 1}`,
+        qty: item.qty || '1',
+        rateStr: priceNum.toLocaleString('en-IN'),
+        amountStr: priceNum > 0 ? priceNum.toLocaleString('en-IN') : '0',
+        isFree: priceNum === 0
+      };
+    });
+  } else {
+    tableItems.push({
+      label: mainServiceLabel,
+      qty: '1 Package',
+      rateStr: totalBudget.toLocaleString('en-IN'),
+      amountStr: totalBudget.toLocaleString('en-IN'),
+      isFree: false
+    });
+  }
 
   const finalTotal = displayTotal;
 
@@ -433,6 +526,8 @@ function renderEstimationQuotationPdf(doc: any, project: any) {
     'Thank You! We look forward to a successful partnership.',
     55, y + 25, { width: 430, align: 'center', lineBreak: false }
   );
+
+  addFooterToAllPages(doc);
 }
 
 // ── 2. MASTER PROJECT CONTRACT PDF (AGREEMENT VER. 1.0) ──────────────────────
