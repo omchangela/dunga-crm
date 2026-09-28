@@ -657,8 +657,8 @@ export const sendProjectCompleted = async (data: { clientPhone: string; clientNa
 /**
  * 13. INITIAL QUOTATION / ESTIMATION PROPOSAL
  *     Template: estimation (en) — Document Header
- *     Params: {{1}}=clientName, {{2}}=projectName, {{3}}=estimationNo, {{4}}=amount, {{5}}=validUntil
- *     Trigger: Sent with preliminary quotation proposal PDF.
+ *     Params: NONE (0 body params) — document header only. Template body is fully static text.
+ *             PDF is attached as document header. ID: 1435652518531910
  */
 export interface QuotationAlertPayload {
     clientPhone: string
@@ -713,6 +713,8 @@ export const sendQuotationAlert = async (data: QuotationAlertPayload) => {
         `*Dunga Technologies*\n` +
         `Technology Solutions & Developer Services`
 
+    // Template: estimation (ID: 1435652518531910) — Initial project estimation
+    // ⚠️  This template has 0 body params + document header (PDF attachment only)
     const attempt = await sendWhatsAppMessage({
         recipientPhone: data.clientPhone,
         recipientName:  data.clientName,
@@ -721,43 +723,16 @@ export const sendQuotationAlert = async (data: QuotationAlertPayload) => {
         type: 'QUOTATION',
         referenceId: data.projectId,
         template: {
-            name: 'final_estimation',
+            name: 'estimation',
             language: 'en',
             headerParams: [{
                 type: 'document',
                 url: docUrl,
                 filename: 'Project_Estimation.pdf'
             }],
-            bodyParams: [
-                data.clientName,
-                data.projectName,
-                estimationNo,
-                formattedAmount,
-                validUntilStr
-            ]
+            bodyParams: [] // 0 body params — template body is static text
         }
     })
-
-    if (!attempt.success) {
-        return sendWhatsAppMessage({
-            recipientPhone: data.clientPhone,
-            recipientName:  data.clientName,
-            message: messageText,
-            mediaUrl: docUrl,
-            type: 'QUOTATION',
-            referenceId: data.projectId,
-            template: {
-                name: 'estimation',
-                language: 'en',
-                headerParams: [{
-                    type: 'document',
-                    url: docUrl,
-                    filename: 'Project_Estimation.pdf'
-                }],
-                bodyParams: []
-            }
-        })
-    }
 
     return attempt
 }
