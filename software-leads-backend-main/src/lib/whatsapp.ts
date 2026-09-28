@@ -7,7 +7,7 @@ export interface SendWhatsAppMessageOptions {
     recipientName?: string
     message: string
     mediaUrl?: string
-    type: 'QUOTATION' | 'PAYMENT_RECEIPT' | 'PROJECT_DEADLINE' | 'SUBSCRIPTION_15D' | 'SUBSCRIPTION_7D' | 'DISCUSSION_COMPLETED' | 'ONBOARDING' | 'CEO_WELCOME' | 'WORK_STARTED' | 'DAILY_UPDATE' | 'PAYMENT_REMINDER' | 'FINAL_PAYMENT_REQUEST' | 'PROJECT_COMPLETED' | 'SERVICES' | 'CUSTOM'
+    type: 'QUOTATION' | 'PAYMENT_RECEIPT' | 'PROJECT_DEADLINE' | 'SUBSCRIPTION_15D' | 'SUBSCRIPTION_7D' | 'DISCUSSION_COMPLETED' | 'ONBOARDING' | 'CEO_WELCOME' | 'WORK_STARTED' | 'DAILY_UPDATE' | 'PAYMENT_REMINDER' | 'FINAL_PAYMENT_REQUEST' | 'PROJECT_COMPLETED' | 'SERVICES' | 'ADVANCE_PAYMENT_REQUEST' | 'CUSTOM'
     referenceId?: string
     template?: {
         name: string
@@ -373,7 +373,7 @@ export const sendAdvancePaymentRequest = async (data: AdvancePaymentRequestPaylo
         recipientPhone: data.clientPhone,
         recipientName:  data.clientName,
         message: `Advance payment request for ${data.projectName}: ₹${formattedAmount}. Pay here: ${data.paymentLink}`,
-        type: 'QUOTATION',
+        type: 'ADVANCE_PAYMENT_REQUEST',
         referenceId: data.projectId,
         template: {
             name: 'advancepaymentrequest',
