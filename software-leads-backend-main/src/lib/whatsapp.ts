@@ -657,8 +657,9 @@ export const sendProjectCompleted = async (data: { clientPhone: string; clientNa
 /**
  * 13. INITIAL QUOTATION / ESTIMATION PROPOSAL
  *     Template: estimation (en) — Document Header
- *     Params: NONE (0 body params) — document header only. Template body is fully static text.
- *             PDF is attached as document header. ID: 1435652518531910
+ *     Params: {{1}}=clientName, {{2}}=projectName, {{3}}=estimationNo, {{4}}=amount, {{5}}=validUntil
+ *             PDF attached as document header. ID: 1435652518531910
+ *     Trigger: Sent with preliminary quotation proposal PDF.
  */
 export interface QuotationAlertPayload {
     clientPhone: string
@@ -714,7 +715,7 @@ export const sendQuotationAlert = async (data: QuotationAlertPayload) => {
         `Technology Solutions & Developer Services`
 
     // Template: estimation (ID: 1435652518531910) — Initial project estimation
-    // ⚠️  This template has 0 body params + document header (PDF attachment only)
+    // 5 body params: clientName, projectName, estNo, amount, validUntil + document header
     const attempt = await sendWhatsAppMessage({
         recipientPhone: data.clientPhone,
         recipientName:  data.clientName,
@@ -730,7 +731,13 @@ export const sendQuotationAlert = async (data: QuotationAlertPayload) => {
                 url: docUrl,
                 filename: 'Project_Estimation.pdf'
             }],
-            bodyParams: [] // 0 body params — template body is static text
+            bodyParams: [
+                data.clientName,
+                data.projectName,
+                estimationNo,
+                formattedAmount,
+                validUntilStr
+            ]
         }
     })
 
