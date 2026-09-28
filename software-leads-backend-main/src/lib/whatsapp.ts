@@ -352,7 +352,7 @@ export const sendDiscussionCompletedAlert = async (data: DiscussionCompletedAler
 
 /**
  * 5. ADVANCE PAYMENT REQUEST
- *    Template: advancepaymentrequest (en_GB) — Text
+ *    Template: advancepaymentrequest (en_GB) — Text (ID: 1790635345737589)
  *    Params: {{1}}=clientName, {{2}}=amount, {{3}}=paymentLink, {{4}}=projectName
  *    Trigger: Sent to request initial advance payment before project commencement.
  */

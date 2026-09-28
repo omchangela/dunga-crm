@@ -776,6 +776,14 @@ export const projectsApi = {
         : {})
     }),
 
+  // Send advance payment request WhatsApp message (template: advancepaymentrequest, ID: 1790635345737589)
+  sendAdvanceRequestWhatsApp: (id: string, data?: { amount?: number; paymentLink?: string; overrideBudget?: number }) =>
+    request<any>(`/api/projects/${id}/whatsapp/advance-request`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data || {})
+    }),
+
   // Get a signed download URL for a Payment Receipt PDF.
   getReceiptPdf: (id: string, payIndex: number = 0, force: boolean = false) =>
     request<any>(`/api/projects/${id}/receipt-pdf?payIndex=${payIndex}${force ? "&force=true" : ""}`),

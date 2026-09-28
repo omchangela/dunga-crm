@@ -6,6 +6,7 @@ import {
   Search, SlidersHorizontal, ChevronLeft, ChevronRight,
   Calculator, X, ChevronDown, FileSpreadsheet, Download, Plus,
   FileDown, Eye, Loader2, FileText, CheckCircle2, AlertTriangle, ArrowRight, MessageCircle,
+  CreditCard, Send, IndianRupee,
 } from "lucide-react";
 import { fetchAllProjects, projectsApi } from "@/lib/api";
 import { e as toEnum } from "@/lib/enum-maps";
@@ -90,6 +91,8 @@ export default function EstimationPage() {
   const [finalPriceInput, setFinalPriceInput] = useState<string>("");
   const [isUpdatingPrice, setIsUpdatingPrice] = useState(false);
   const [isGeneratingModalPdf, setIsGeneratingModalPdf] = useState(false);
+  const [advanceJobs, setAdvanceJobs]           = useState<Record<string, 'sending' | 'done' | 'error'>>({});
+  const [advanceAmountInput, setAdvanceAmountInput] = useState<string>("");
 
   useEffect(() => () => {
     Object.values(pdfIntervalsRef.current).forEach(clearInterval);
@@ -184,6 +187,36 @@ export default function EstimationPage() {
       setWaJobs((w) => ({ ...w, [proj.id]: 'error' }));
       showToast(err?.message ?? 'Failed to send WhatsApp.');
       setTimeout(() => setWaJobs((w) => { const n = { ...w }; delete n[proj.id]; return n; }), 3000);
+    }
+  }
+
+  async function handleSendAdvanceRequest(proj: any, customAmount?: number, e?: React.MouseEvent) {
+    if (e) e.stopPropagation();
+    if (!proj) return;
+    if (advanceJobs[proj.id] === 'sending') return;
+
+    let reqAmount = customAmount !== undefined
+      ? customAmount
+      : (advanceAmountInput && Number(advanceAmountInput) > 0 ? Number(advanceAmountInput) : undefined);
+
+    if (!reqAmount) {
+      const budget = finalPriceInput ? Number(finalPriceInput) : Number(proj.budget || 0);
+      reqAmount = budget > 0 ? Math.round(budget * 0.5) : 25000;
+    }
+
+    setAdvanceJobs((w) => ({ ...w, [proj.id]: 'sending' }));
+    try {
+      await projectsApi.sendAdvanceRequestWhatsApp(proj.id, {
+        amount: reqAmount,
+        overrideBudget: finalPriceInput ? Number(finalPriceInput) : undefined
+      });
+      setAdvanceJobs((w) => ({ ...w, [proj.id]: 'done' }));
+      showToast(`Advance payment request (₹${reqAmount.toLocaleString('en-IN')}) sent to client WhatsApp!`);
+      setTimeout(() => setAdvanceJobs((w) => { const n = { ...w }; delete n[proj.id]; return n; }), 4000);
+    } catch (err: any) {
+      setAdvanceJobs((w) => ({ ...w, [proj.id]: 'error' }));
+      showToast(err?.message ?? "Failed to send Advance Request WhatsApp.");
+      setTimeout(() => setAdvanceJobs((w) => { const n = { ...w }; delete n[proj.id]; return n; }), 3000);
     }
   }
 
@@ -515,6 +548,68 @@ export default function EstimationPage() {
                     {waJobs[selected.id] === 'sending' ? "Sending..." : "Send Final WhatsApp"}
                   </button>
                 </div>
+
+                {/* Advance Payment WhatsApp Action */}
+                <div className="pt-3 border-t border-blue-200/60 dark:border-blue-900/40 space-y-2.5">
+                  <div className="flex items-center justify-between">
+                    <p className="text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
+                      <CreditCard className="h-3.5 w-3.5 text-emerald-600" />
+                      Advance Payment Request
+                    </p>
+                    <span className="text-[10px] font-bold text-emerald-700 dark:text-emerald-400 bg-emerald-100/80 dark:bg-emerald-950 px-2 py-0.5 rounded-full border border-emerald-200 dark:border-emerald-800">
+                      Template: advancepaymentrequest
+                    </span>
+                  </div>
+
+                  <div className="flex flex-col sm:flex-row items-center gap-2">
+                    <div className="relative flex-1 w-full">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400">Advance ₹</span>
+                      <Input
+                        type="number"
+                        placeholder="Advance Amount"
+                        value={advanceAmountInput}
+                        onChange={(e) => setAdvanceAmountInput(e.target.value)}
+                        className="h-10 pl-20 text-xs font-bold text-slate-900 dark:text-white rounded-xl bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700"
+                      />
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const base = finalPriceInput ? Number(finalPriceInput) : Number(selected.budget || 0);
+                        setAdvanceAmountInput(String(Math.round(base * 0.5)));
+                      }}
+                      className="rounded-xl border border-emerald-300 bg-white dark:bg-slate-800 px-3 py-2.5 text-xs font-bold text-emerald-700 dark:text-emerald-300 hover:bg-emerald-50 transition shadow-sm shrink-0"
+                      title="Set to 50% of agreed price"
+                    >
+                      50%
+                    </button>
+                    <button
+                      type="button"
+                      disabled={advanceJobs[selected.id] === 'sending'}
+                      onClick={() => handleSendAdvanceRequest(selected)}
+                      className={`w-full sm:w-auto inline-flex items-center justify-center gap-1.5 rounded-xl px-4 py-2.5 text-xs font-bold transition shadow-sm shrink-0 ${
+                        advanceJobs[selected.id] === 'done'
+                          ? 'border border-emerald-300 bg-emerald-100 text-emerald-800'
+                          : advanceJobs[selected.id] === 'error'
+                          ? 'border border-rose-300 bg-rose-50 text-rose-600'
+                          : 'border border-emerald-500 bg-emerald-600 hover:bg-emerald-700 text-white active:scale-95'
+                      }`}
+                    >
+                      {advanceJobs[selected.id] === 'sending' ? (
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      ) : advanceJobs[selected.id] === 'done' ? (
+                        <CheckCircle2 className="h-3.5 w-3.5" />
+                      ) : (
+                        <Send className="h-3.5 w-3.5" />
+                      )}
+                      {advanceJobs[selected.id] === 'sending'
+                        ? "Sending..."
+                        : advanceJobs[selected.id] === 'done'
+                        ? "Advance Sent ✓"
+                        : "Send Advance Request"}
+                    </button>
+                  </div>
+                </div>
               </div>
 
               <div>
@@ -611,6 +706,23 @@ export default function EstimationPage() {
               <button onClick={handleConfirmConvert} disabled={converting}
                 className="flex-1 rounded-xl bg-purple-600 py-2.5 text-xs font-bold text-white hover:bg-purple-700 transition disabled:opacity-60 shadow-md">
                 {converting ? "Converting..." : "Confirm & Convert"}
+              </button>
+              <button
+                type="button"
+                onClick={async () => {
+                  const firstMilestone = finalPayments.find(p => p.amount && Number(p.amount) > 0);
+                  const advAmt = firstMilestone ? Number(firstMilestone.amount) : undefined;
+                  const currentSelected = selected;
+                  await handleConfirmConvert();
+                  if (currentSelected) {
+                    handleSendAdvanceRequest(currentSelected, advAmt);
+                  }
+                }}
+                disabled={converting}
+                className="rounded-xl border border-emerald-300 bg-emerald-50 px-3.5 py-2.5 text-xs font-bold text-emerald-700 hover:bg-emerald-100 transition flex items-center gap-1.5 shadow-sm"
+              >
+                <Send className="h-3.5 w-3.5" />
+                Convert & Send Advance
               </button>
               <button onClick={() => setShowConvert(false)}
                 className="rounded-xl border border-slate-200 dark:border-slate-800 px-4 py-2.5 text-xs font-bold text-slate-600 dark:text-slate-400 hover:bg-slate-50">
@@ -728,7 +840,13 @@ export default function EstimationPage() {
                       return (
                         <tr
                           key={p.id}
-                          onClick={() => { setSelected(p); setFinalPriceInput(String(p.budget || "")); }}
+                          onClick={() => {
+                            setSelected(p);
+                            const budgetVal = p.budget ? String(p.budget) : "";
+                            setFinalPriceInput(budgetVal);
+                            const defaultAdv = budgetVal ? Math.round(Number(budgetVal) * 0.5) : 0;
+                            setAdvanceAmountInput(defaultAdv > 0 ? String(defaultAdv) : "");
+                          }}
                           className="cursor-pointer transition hover:bg-slate-50/80 dark:hover:bg-slate-800/50"
                         >
                           <td className="py-3.5 px-4 font-black text-blue-600 dark:text-blue-400">{rowNum}</td>
@@ -793,6 +911,17 @@ export default function EstimationPage() {
                                     }`}>
                                     {waJobs[p.id] === 'sending' ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <MessageCircle className="h-3.5 w-3.5" />}
                                     {waJobs[p.id] === 'sending' ? 'Sending...' : waJobs[p.id] === 'done' ? 'Sent ✓' : 'WhatsApp'}
+                                  </button>
+                                  <button onClick={(e) => handleSendAdvanceRequest(p, undefined, e)}
+                                    title="Send Advance Request WhatsApp (Template: advancepaymentrequest)"
+                                    disabled={advanceJobs[p.id] === 'sending'}
+                                    className={`inline-flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-xs font-bold transition disabled:opacity-60 ${
+                                      advanceJobs[p.id] === 'done'  ? 'border-emerald-300 bg-emerald-100 text-emerald-800 dark:bg-emerald-950/50 dark:border-emerald-800 dark:text-emerald-300' :
+                                      advanceJobs[p.id] === 'error' ? 'border-rose-200 bg-rose-50 text-rose-600' :
+                                      'border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 dark:bg-emerald-950/40 dark:border-emerald-800 dark:text-emerald-300'
+                                    }`}>
+                                    {advanceJobs[p.id] === 'sending' ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <CreditCard className="h-3.5 w-3.5" />}
+                                    {advanceJobs[p.id] === 'sending' ? 'Sending...' : advanceJobs[p.id] === 'done' ? 'Advance Sent ✓' : 'Advance'}
                                   </button>
                                 </div>
                               );

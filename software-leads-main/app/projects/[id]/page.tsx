@@ -6,7 +6,7 @@ import Link from "next/link";
 import {
   ArrowLeft, User, Phone, Mail, FolderKanban, Layers,
   Hash, CalendarDays, DollarSign, Tag, Pencil, X, Code2, Check, CheckSquare,
-  Plus, Trash2, IndianRupee, FileText, Loader2, Eye, ExternalLink, ArrowRight, CheckCircle2, Clock,
+  Plus, Trash2, IndianRupee, FileText, Loader2, Eye, ExternalLink, ArrowRight, CheckCircle2, Clock, Send, CreditCard,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { DetailSkeleton } from "@/components/ui/skeleton";
@@ -92,6 +92,7 @@ export default function ProjectDetailPage() {
   const projectPdfIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const [viewer, setViewer]   = useState<{ url: string; title: string } | null>(null);
   const [financeLedger, setFinanceLedger]   = useState<any>(null);
+  const [advanceSending, setAdvanceSending] = useState(false);
 
   useEffect(() => () => {
     if (projectPdfIntervalRef.current) clearInterval(projectPdfIntervalRef.current);
@@ -286,6 +287,19 @@ export default function ProjectDetailPage() {
       }
     } catch (err: any) {
       showToast(err?.message ?? "Failed to generate receipt PDF.");
+    }
+  }
+
+  async function handleSendAdvanceRequest(advAmount?: number) {
+    if (!project || advanceSending) return;
+    setAdvanceSending(true);
+    try {
+      await projectsApi.sendAdvanceRequestWhatsApp(project.id, { amount: advAmount });
+      showToast("Advance payment request sent to client on WhatsApp!");
+    } catch (err: any) {
+      showToast(err?.message ?? "Failed to send Advance Request WhatsApp.");
+    } finally {
+      setAdvanceSending(false);
     }
   }
 
@@ -649,9 +663,23 @@ export default function ProjectDetailPage() {
                                 Partial ({formatCurrency(partialPaid)})
                               </span>
                             ) : (
-                              <span className="inline-flex items-center rounded-full bg-slate-100 border border-slate-200 px-2 py-0.5 text-[10px] font-bold uppercase text-slate-500 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-400">
-                                Pending
-                              </span>
+                              <div className="flex items-center gap-1.5">
+                                <span className="inline-flex items-center rounded-full bg-slate-100 border border-slate-200 px-2 py-0.5 text-[10px] font-bold uppercase text-slate-500 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-400">
+                                  Pending
+                                </span>
+                                {i === 0 && (
+                                  <button
+                                    type="button"
+                                    onClick={() => handleSendAdvanceRequest(amount)}
+                                    disabled={advanceSending}
+                                    className="inline-flex items-center gap-1 rounded-lg border border-emerald-300 bg-emerald-50 px-2 py-1 text-[11px] font-bold text-emerald-700 shadow-sm hover:bg-emerald-100 dark:bg-emerald-950/40 dark:border-emerald-800 dark:text-emerald-300 transition disabled:opacity-60"
+                                    title="Send Advance Request WhatsApp (Template: advancepaymentrequest)"
+                                  >
+                                    {advanceSending ? <Loader2 className="h-3 w-3 animate-spin" /> : <Send className="h-3 w-3" />}
+                                    Request Advance
+                                  </button>
+                                )}
+                              </div>
                             )}
                           </div>
                         </div>

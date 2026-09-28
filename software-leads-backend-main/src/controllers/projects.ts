@@ -1266,19 +1266,36 @@ export const sendAdvancePaymentRequestController = async (req: Request, res: Res
     }
 
     try {
-        const amount = req.body.amount || Math.round(Number(project.budget || 50000) * 0.5)
-        const paymentLink = req.body.paymentLink || 'https://rzp.io/l/dunga-advance'
+        let amount = req.body.amount ? Number(req.body.amount) : null
+        if (!amount || isNaN(amount) || amount <= 0) {
+            if (req.body.overrideBudget && Number(req.body.overrideBudget) > 0) {
+                amount = Math.round(Number(req.body.overrideBudget) * 0.5)
+            } else if (Array.isArray(project.payments) && (project.payments as any[]).length > 0 && (project.payments as any[])[0]?.amount) {
+                amount = Math.round(Number((project.payments as any[])[0].amount))
+            } else if (project.budget && Number(project.budget) > 0) {
+                amount = Math.round(Number(project.budget) * 0.5)
+            } else {
+                amount = 25000
+            }
+        }
+
+        const paymentLink = req.body.paymentLink || process.env.ADVANCE_PAYMENT_LINK || 'https://rzp.io/l/dunga-advance'
 
         const result = await sendAdvancePaymentRequest({
             clientPhone: project.customer.phone,
-            clientName:  project.customer.fullName,
+            clientName:  project.customer.fullName || 'Valued Client',
             amount,
             paymentLink,
-            projectName: project.projectName,
+            projectName: project.projectName || 'Project',
             projectId:   project.id
         })
 
-        res.status(200).json({ success: result.success, message: 'Advance payment request WhatsApp sent', result })
+        if (!result.success) {
+            res.status(400).json({ success: false, message: result.error || 'Failed to send advance payment request WhatsApp', error: result.error })
+            return
+        }
+
+        res.status(200).json({ success: true, message: 'Advance payment request WhatsApp sent successfully', result })
     } catch (err: any) {
         res.status(500).json({ success: false, message: 'Failed to send WhatsApp', error: err?.message })
     }
