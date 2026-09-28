@@ -657,8 +657,8 @@ export const sendProjectCompleted = async (data: { clientPhone: string; clientNa
 /**
  * 13. INITIAL QUOTATION / ESTIMATION PROPOSAL
  *     Template: estimation (en) — Document Header
- *     Params: {{1}}=clientName, {{2}}=projectName, {{3}}=estimationNo, {{4}}=amount, {{5}}=validUntil
- *             PDF attached as document header. ID: 1435652518531910
+ *     Params: {{1}}=clientName 👋, {{2}}=projectName, {{3}}=estimationNo, {{4}}=amount, {{5}}=validUntil
+ *             PDF attached as document header. ID: 1662555335439478
  *     Trigger: Sent with preliminary quotation proposal PDF.
  */
 export interface QuotationAlertPayload {
@@ -725,7 +725,7 @@ export const sendQuotationAlert = async (data: QuotationAlertPayload) => {
         referenceId: data.projectId,
         template: {
             name: 'estimation',
-            language: 'en',
+            language: 'en_US',
             headerParams: [{
                 type: 'document',
                 url: docUrl,
